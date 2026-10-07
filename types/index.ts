@@ -43,3 +43,4 @@ export * from "./watchlistRoute";
 export * from "./liveIndicesRoute";
 export * from "./authMeRoute";
 export * from "./InvestmentQuotesLoading";
+export * from "./QueryProvider";

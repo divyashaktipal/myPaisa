@@ -30,3 +30,4 @@ export * from "./DashboardRoutePage";
 export * from "./NotFound";
 export * from "./GlobalError";
 export * from "./InvestmentQuotesLoading";
+export * from "./QueryProvider";

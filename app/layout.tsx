@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ROOT_LAYOUT_METADATA } from "@/constants/RootLayout";
 import type { RootLayoutProps } from "@/types/RootLayout";
+import { QueryProvider } from "@/components/providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,7 +24,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
         className="bg-[#fcfdfd] text-[#111827] font-sans antialiased overflow-x-hidden"
         suppressHydrationWarning
       >
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

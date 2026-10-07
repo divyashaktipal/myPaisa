@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
 import type {
   LiveIndexData,
   FeatureTimeframe,
   FeaturesSectionProps,
 } from "@/types/FeaturesSection";
+import type { FinanceApiResponse } from "@/types";
 import {
   FEATURES_SECTION_HEADER,
   FEATURE_TIMEFRAMES,
@@ -16,13 +18,14 @@ import {
   DEFAULT_FEATURE_WATCHLIST,
   STATIC_FEATURE_NEWS,
   FEATURE_CARDS_CONTENT,
-} from "@/constants/FeaturesSection";
+  QUERY_CLIENT_CONFIG,
+} from "@/constants";
 
 const FeaturesSection = (_props: FeaturesSectionProps = {}) => {
   // 1. Dynamic Live Index State (polled from SerpApi Google Finance feed)
   const [indices, setIndices] = useState<LiveIndexData[]>([]);
   const [lastRefreshed, setLastRefreshed] = useState<string>("Connecting...");
-  const [refreshCountdown, setRefreshCountdown] = useState<number>(60);
+  const [refreshCountdown, setRefreshCountdown] = useState<number>(180);
 
   // 2. Dynamic Chart Timeframe Selector
   const [activeTimeframe, setActiveTimeframe] = useState<FeatureTimeframe>("5Y");
@@ -33,75 +36,73 @@ const FeaturesSection = (_props: FeaturesSectionProps = {}) => {
   // 4. Dynamic Screener Filter Selector
   const [activeFilter, setActiveFilter] = useState<string>(SCREENER_FILTER_OPTIONS[0]);
 
-  // Fetch dynamic market data strictly from SerpApi with error handling
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchLiveFeed = async () => {
-      try {
-        const res = await fetch("/api/finance?symbol=NIFTY%2050&window=1D");
-        if (!res?.ok) {
-          console.warn(`FeaturesSection live feed received HTTP status ${res?.status}`);
-          return;
-        }
-
-        const json = await res?.json?.();
-        if (isMounted && json && json?.price != null) {
-          const list: LiveIndexData[] = [
-            {
-              symbol: "NIFTY 50",
-              name: "Nifty 50",
-              price: Number(json?.price),
-              changePercent: Number(json?.changePercent ?? 0),
-            },
-          ];
-
-          if (Array.isArray(json?.related)) {
-            for (const item of json?.related?.slice?.(0, 2) ?? []) {
-              const p =
-                item?.extracted_price ??
-                (item?.price ? parseFloat(item?.price?.replace?.(/,/g, "") ?? "0") : null);
-              if (p != null) {
-                const rawStock = item?.stock
-                  ? item?.stock?.split?.(":")[0]?.replace?.(/_/g, " ")
-                  : "INDEX";
-                const isDown = item?.price_movement?.movement === "Down";
-                const pct = item?.price_movement?.percentage ?? 0;
-                list.push({
-                  symbol: rawStock,
-                  name: rawStock,
-                  price: p,
-                  changePercent: isDown ? -Math.abs(pct) : Math.abs(pct),
-                });
-              }
-            }
-          }
-
-          setIndices(list);
-          const now = new Date();
-          setLastRefreshed(
-            now.toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })
-          );
-        }
-      } catch (err) {
-        console.warn("FeaturesSection network failure:", err);
+  // TanStack React Query: Shared cached NIFTY 50 live feed with DashboardPage
+  const { data: nifityFinanceData } = useQuery<FinanceApiResponse | null>({
+    queryKey: ["finance", "NIFTY 50", "1D"],
+    queryFn: async () => {
+      const res = await fetch("/api/finance?symbol=NIFTY%2050&window=1D");
+      if (!res?.ok) {
+        console.warn(`FeaturesSection live feed received HTTP status ${res?.status}`);
+        return null;
       }
-    };
+      return (await res.json()) as FinanceApiResponse;
+    },
+    staleTime: QUERY_CLIENT_CONFIG?.liveWindowStaleTime ?? 180000,
+    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
-    fetchLiveFeed();
-    const interval = setInterval(fetchLiveFeed, 60000);
+  useEffect(() => {
+    if (!nifityFinanceData || nifityFinanceData?.price == null) return;
+    const json = nifityFinanceData;
+    const list: LiveIndexData[] = [
+      {
+        symbol: "NIFTY 50",
+        name: "Nifty 50",
+        price: Number(json?.price),
+        changePercent: Number(json?.changePercent ?? 0),
+      },
+    ];
 
+    if (Array.isArray(json?.related)) {
+      for (const item of json?.related?.slice?.(0, 2) ?? []) {
+        const p =
+          item?.extracted_price ??
+          (item?.price ? parseFloat(item?.price?.replace?.(/,/g, "") ?? "0") : null);
+        if (p != null) {
+          const rawStock = item?.stock
+            ? item?.stock?.split?.(":")[0]?.replace?.(/_/g, " ")
+            : "INDEX";
+          const isDown = item?.price_movement?.movement === "Down";
+          const pct = item?.price_movement?.percentage ?? 0;
+          list.push({
+            symbol: rawStock,
+            name: rawStock,
+            price: p,
+            changePercent: isDown ? -Math.abs(pct) : Math.abs(pct),
+          });
+        }
+      }
+    }
+
+    setIndices(list);
+    const now = new Date();
+    setLastRefreshed(
+      now.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    );
+  }, [nifityFinanceData]);
+
+  useEffect(() => {
     const timer = setInterval(() => {
-      setRefreshCountdown((prev) => (prev <= 1 ? 60 : prev - 1));
+      setRefreshCountdown((prev) => (prev <= 1 ? 180 : prev - 1));
     }, 1000);
 
     return () => {
-      isMounted = false;
-      clearInterval(interval);
       clearInterval(timer);
     };
   }, []);

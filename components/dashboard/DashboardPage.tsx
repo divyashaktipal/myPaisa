@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DashboardNavbar,
   StatusBanner,
@@ -22,128 +23,158 @@ import {
   DASHBOARD_ERROR_MESSAGES,
   DASHBOARD_FALLBACK_ERROR,
   WATCHLIST_UPDATE_ERROR,
-} from "@/constants/DashboardPage";
+  QUERY_CLIENT_CONFIG,
+} from "@/constants";
 
 const DashboardPage = ({ user }: DashboardPageProps) => {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>(DEFAULT_DASHBOARD_STATE.activeTab);
   const [selectedIndex, setSelectedIndex] = useState<string>(DEFAULT_DASHBOARD_STATE.selectedIndex);
   const [selectedWindow, setSelectedWindow] = useState<string>(DEFAULT_DASHBOARD_STATE.selectedWindow);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [watchlist, setWatchlist] = useState<string[]>([...DEFAULT_DASHBOARD_STATE.initialWatchlist]);
-
-  // 100% Dynamic SerpApi Finance state - absolutely NO mock/fallback data
-  const [financeData, setFinanceData] = useState<FinanceApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorState, setErrorState] = useState<DashboardErrorState | null>(null);
   const [watchlistNotification, setWatchlistNotification] = useState<string | null>(null);
+  const [dismissedErrorKey, setDismissedErrorKey] = useState<string | null>(null);
 
-  // Fetch Watchlist from MongoDB / API with comprehensive status code error handling
-  useEffect(() => {
-    fetch(DASHBOARD_API_ROUTES.watchlist)
-      .then(async (res) => {
-        if (res?.ok) {
-          return res.json();
-        }
-        if (res?.status === 401) {
-          console.warn("Watchlist: user unauthenticated, running in guest mode.");
-        } else if ((res?.status ?? 0) >= 500) {
-          console.error(`Watchlist API returned server error status ${res?.status}`);
-        }
-        return null;
-      })
-      .then((data) => {
-        if (data?.symbols && Array.isArray(data?.symbols)) {
-          setWatchlist(data?.symbols);
-        }
-      })
-      .catch((err) => {
-        console.error("Network error fetching watchlist:", err);
-      });
-  }, []);
+  // TanStack React Query: Dynamic caching with window-dependent staleTime
+  const currentErrorKey = `${selectedIndex}-${selectedWindow}`;
 
-  // Fetch Live Finance Data strictly from SerpApi with HTTP 400, 401, 404, 429, 500, 502, 503 handling
-  const fetchFinance = useCallback(async (index: string, window: string) => {
-    setLoading(true);
-    setErrorState(null);
-
-    try {
+  const {
+    data: financeData,
+    isLoading: isFinanceLoading,
+    error: financeQueryError,
+    refetch: refetchFinance,
+  } = useQuery<FinanceApiResponse, DashboardErrorState>({
+    queryKey: ["finance", selectedIndex, selectedWindow],
+    queryFn: async () => {
       const res = await fetch(
-        `${DASHBOARD_API_ROUTES.finance}?symbol=${encodeURIComponent(index)}&window=${encodeURIComponent(window)}`
+        `${DASHBOARD_API_ROUTES.finance}?symbol=${encodeURIComponent(selectedIndex)}&window=${encodeURIComponent(selectedWindow)}`
       );
 
       if (res?.ok) {
-        const json = (await res?.json?.()) as FinanceApiResponse;
-        setFinanceData(json);
-        setErrorState(null);
-      } else {
-        const status = res?.status ?? 500;
-        let errorMessage = DASHBOARD_ERROR_MESSAGES[status] || DASHBOARD_FALLBACK_ERROR;
-
-        try {
-          const errorJson = await res?.json?.();
-          if (errorJson?.error && typeof errorJson?.error === "string") {
-            errorMessage = errorJson?.error;
-          }
-        } catch {
-          // If response body isn't JSON, retain default status code message
-        }
-
-        setFinanceData(null);
-        setErrorState({
-          statusCode: status,
-          message: errorMessage,
-        });
+        return (await res.json()) as FinanceApiResponse;
       }
-    } catch (err: unknown) {
-      console.error("Fetch finance network exception:", err);
-      setFinanceData(null);
-      setErrorState({
-        statusCode: 0,
-        message: DASHBOARD_FALLBACK_ERROR,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchFinance(selectedIndex, selectedWindow);
-  }, [selectedIndex, selectedWindow, fetchFinance]);
+      const status = res?.status ?? 500;
+      let errorMessage = DASHBOARD_ERROR_MESSAGES[status] || DASHBOARD_FALLBACK_ERROR;
 
-  // Toggle stock in MongoDB Watchlist with optimistic update and rollback on 400/500 errors
-  const handleToggleWatchlist = async (symbol: string) => {
-    const previousWatchlist = [...watchlist];
-    const exists = watchlist.includes(symbol);
-    setWatchlist((prev) => (exists ? prev.filter((s) => s !== symbol) : [...prev, symbol]));
-    setWatchlistNotification(null);
+      try {
+        const errorJson = await res.json();
+        if (errorJson?.error && typeof errorJson?.error === "string") {
+          errorMessage = errorJson.error;
+        }
+      } catch {
+        // Fall back to status message
+      }
 
-    try {
+      const customError: DashboardErrorState = {
+        statusCode: status,
+        message: errorMessage,
+      };
+      throw customError;
+    },
+    staleTime:
+      selectedWindow === "1D"
+        ? (QUERY_CLIENT_CONFIG?.liveWindowStaleTime ?? 180000)
+        : (QUERY_CLIENT_CONFIG?.historicalWindowStaleTime ?? 900000),
+    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: (failureCount, err) => {
+      if (err?.statusCode && (err.statusCode === 400 || err.statusCode === 404)) {
+        return false;
+      }
+      return failureCount < 1;
+    },
+  });
+
+  const loading = isFinanceLoading;
+  const errorState = dismissedErrorKey === currentErrorKey ? null : (financeQueryError ?? null);
+
+  // TanStack React Query: Cached Watchlist query
+  const { data: watchlistData } = useQuery<{ success: boolean; symbols: string[] }>({
+    queryKey: ["watchlist"],
+    queryFn: async () => {
+      const res = await fetch(DASHBOARD_API_ROUTES.watchlist);
+      if (!res?.ok) {
+        if (res?.status === 401) {
+          console.warn("Watchlist: user unauthenticated, running in guest mode.");
+        }
+        return { success: false, symbols: [...DEFAULT_DASHBOARD_STATE.initialWatchlist] };
+      }
+      return res.json();
+    },
+    staleTime: QUERY_CLIENT_CONFIG?.watchlistStaleTime ?? 300000,
+    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  const watchlist =
+    watchlistData?.symbols && Array.isArray(watchlistData?.symbols)
+      ? watchlistData.symbols
+      : DEFAULT_DASHBOARD_STATE.initialWatchlist;
+
+  // TanStack React Query: Optimistic Watchlist Mutation with auto-rollback on error
+  const toggleWatchlistMutation = useMutation({
+    mutationFn: async (symbol: string) => {
       const res = await fetch(DASHBOARD_API_ROUTES.watchlist, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol }),
       });
 
-      if (res?.ok) {
-        const result = await res?.json?.();
-        if (result?.symbols && Array.isArray(result?.symbols)) {
-          setWatchlist(result?.symbols);
-        }
-      } else {
+      if (!res?.ok) {
         const status = res?.status ?? 500;
-        console.warn(`Watchlist modification failed with HTTP ${status}`);
-        setWatchlist(previousWatchlist);
-        setWatchlistNotification(
+        const err = new Error(
           status === 401
             ? "Sign in required to persist watchlist across sessions."
             : WATCHLIST_UPDATE_ERROR
         );
+        (err as unknown as { status: number }).status = status;
+        throw err;
       }
-    } catch (err) {
-      console.error("Error communicating with watchlist API:", err);
-      setWatchlist(previousWatchlist);
-      setWatchlistNotification(WATCHLIST_UPDATE_ERROR);
-    }
+      return res.json();
+    },
+    onMutate: async (symbol: string) => {
+      setWatchlistNotification(null);
+      await queryClient.cancelQueries({ queryKey: ["watchlist"] });
+      const previous = queryClient.getQueryData<{ success: boolean; symbols: string[] }>(["watchlist"]);
+      const previousSymbols = previous?.symbols ?? [...DEFAULT_DASHBOARD_STATE.initialWatchlist];
+
+      const exists = previousSymbols.includes(symbol);
+      const nextSymbols = exists
+        ? previousSymbols.filter((s) => s !== symbol)
+        : [...previousSymbols, symbol];
+
+      queryClient.setQueryData(["watchlist"], {
+        success: true,
+        symbols: nextSymbols,
+      });
+
+      return { previousSymbols };
+    },
+    onError: (err: unknown, _symbol, context) => {
+      if (context?.previousSymbols) {
+        queryClient.setQueryData(["watchlist"], {
+          success: true,
+          symbols: context.previousSymbols,
+        });
+      }
+      const message = err instanceof Error ? err.message : WATCHLIST_UPDATE_ERROR;
+      setWatchlistNotification(message);
+    },
+    onSuccess: (result) => {
+      if (result?.symbols && Array.isArray(result?.symbols)) {
+        queryClient.setQueryData(["watchlist"], {
+          success: true,
+          symbols: result.symbols,
+        });
+      }
+    },
+  });
+
+  const handleToggleWatchlist = (symbol: string) => {
+    toggleWatchlistMutation.mutate(symbol);
   };
 
   const handleSelectStock = (stock: StockItem) => {
@@ -186,14 +217,17 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => fetchFinance(selectedIndex, selectedWindow)}
+                onClick={() => {
+                  setDismissedErrorKey(null);
+                  refetchFinance();
+                }}
                 className="px-3 py-1.5 rounded-lg bg-rose-900/60 hover:bg-rose-800/80 text-rose-100 text-xs font-semibold transition cursor-pointer"
               >
                 Retry
               </button>
               <button
                 type="button"
-                onClick={() => setErrorState(null)}
+                onClick={() => setDismissedErrorKey(currentErrorKey)}
                 className="p-1 rounded-lg text-rose-400 hover:text-rose-200 transition text-sm cursor-pointer"
                 aria-label="Dismiss error"
               >

@@ -1,9 +1,5 @@
 import type { EnvConfig } from "@/types/env";
 
-/**
- * Centralized Environment Configuration
- * Validates and exposes typed environment variables for server and client execution.
- */
 export const env: EnvConfig = {
   SERPAPI_KEY: process.env.SERPAPI_KEY || "",
   MONGODB_URI: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/myPaisa",
