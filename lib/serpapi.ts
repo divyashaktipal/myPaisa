@@ -18,6 +18,8 @@ export type {
   SerpApiKeyStat,
   SerpApiNewsItem,
   SerpApiDiscoverItem,
+  SerpApiAboutInfo,
+  SerpApiAbout,
   SerpApiFinanceResponse,
 } from "@/types/serpapi";
 

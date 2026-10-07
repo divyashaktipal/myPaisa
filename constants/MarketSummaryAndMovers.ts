@@ -11,10 +11,14 @@ export const MARKET_SUMMARY_DEFAULTS: MarketSummaryDefaults = {
   locale: "en-IN",
 };
 
+export const MOVER_INDICES = ["NIFTY 50", "NIFTY 100", "NIFTY 200"] as const;
+
 export const MARKET_SUMMARY_HEADERS: MarketSummaryHeaders = {
   aboutPrefix: "About ",
   liveNewsFeedPrefix: "Live News Feed · ",
-  relatedMarketsTitle: "Related Markets · Google Finance",
+  topMoversPrefix: "TOP MOVERS · ",
+  gainers: "Gainers",
+  losers: "Losers",
 };
 
 export const WATCHLIST_INTERACTION: WatchlistInteraction = {

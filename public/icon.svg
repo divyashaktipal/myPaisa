@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1712"/>
+      <stop offset="50%" stop-color="#0e231b"/>
+      <stop offset="100%" stop-color="#05100c"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a3e635"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect width="506" height="506" x="3" y="3" rx="109" stroke="#10b981" stroke-width="6" stroke-opacity="0.3"/>
+
+  <!-- Ambient Glow Behind Icon -->
+  <circle cx="256" cy="256" r="160" fill="#10b981" opacity="0.12" filter="url(#glow)"/>
+
+  <!-- Outer Hexagonal / Circular Shield Rings -->
+  <circle cx="256" cy="256" r="180" stroke="url(#accentGrad)" stroke-width="4" stroke-dasharray="12 12" opacity="0.4"/>
+  <circle cx="256" cy="256" r="150" fill="#091812" stroke="url(#glowGrad)" stroke-width="12"/>
+
+  <!-- Inner Coin Ring -->
+  <circle cx="256" cy="256" r="126" stroke="#34d399" stroke-width="3" stroke-opacity="0.6"/>
+
+  <!-- Stylized Rupee (₹) Symbol in Brilliant White and Lime -->
+  <path d="M190 160 H322" stroke="url(#accentGrad)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M190 208 H294" stroke="url(#accentGrad)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M246 160 V352" stroke="#ffffff" stroke-width="26" stroke-linecap="round"/>
+  <path d="M246 208 C310 208 310 286 246 286 H214" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M232 284 L322 360" stroke="url(#glowGrad)" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- Growth Spark / Momentum Dot -->
+  <circle cx="340" cy="160" r="14" fill="#a3e635"/>
+</svg>

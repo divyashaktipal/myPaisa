@@ -49,6 +49,22 @@ export interface SerpApiDiscoverItem {
   link?: string;
 }
 
+export interface SerpApiAboutInfo {
+  label?: string;
+  value?: string;
+  link?: string;
+}
+
+export interface SerpApiAbout {
+  title?: string;
+  description?: {
+    snippet?: string;
+    link?: string;
+    link_text?: string;
+  };
+  info?: SerpApiAboutInfo[];
+}
+
 export interface SerpApiFinanceResponse {
   search_metadata?: { status?: string };
   summary?: SerpApiFinanceSummary;
@@ -57,14 +73,7 @@ export interface SerpApiFinanceResponse {
     key_stats?: {
       stats?: SerpApiKeyStat[];
     };
-    about?: Array<{
-      title?: string;
-      description?: {
-        snippet?: string;
-        link?: string;
-        link_text?: string;
-      };
-    }>;
+    about?: SerpApiAbout[];
   };
   news_results?: SerpApiNewsItem[];
   discover_more?: Array<{

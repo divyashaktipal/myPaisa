@@ -6,6 +6,17 @@ export interface DashboardPageProps {
   user?: DashboardUser | null;
 }
 
+export interface CompanyBasicDetails {
+  title?: string | null;
+  snippet?: string | null;
+  link?: string | null;
+  linkText?: string | null;
+  info?: Array<{ label?: string; value?: string; link?: string }>;
+  stats?: Array<{ label: string; value: string }>;
+  exchange?: string | null;
+  symbol?: string | null;
+}
+
 export interface FinanceApiResponse {
   success?: boolean;
   source: string;
@@ -22,6 +33,7 @@ export interface FinanceApiResponse {
   chartPoints: ChartPoint[];
   stats?: ChartStat[];
   about?: string | null;
+  aboutDetails?: CompanyBasicDetails | null;
   news?: SerpApiNewsItem[];
   related?: SerpApiDiscoverItem[];
   error?: string;

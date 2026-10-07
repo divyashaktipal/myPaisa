@@ -10,6 +10,7 @@ const WatchlistSection = ({
   watchlist = [],
   onToggleWatchlist,
   onOpenSearch,
+  onSelectStock,
 }: WatchlistSectionProps) => {
   const watchlistedStocks: StockItem[] =
     watchlist
@@ -77,8 +78,23 @@ const WatchlistSection = ({
                     {WATCHLIST_SECTION_CONFIG.starIcon}
                   </button>
                   <div>
-                    <h3 className="font-bold text-sm text-white">{stock?.symbol}</h3>
-                    <p className="text-xs text-gray-400">{stock?.name}</p>
+                    {onSelectStock ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelectStock(stock)}
+                        className="text-left cursor-pointer group/title"
+                      >
+                        <h3 className="font-bold text-sm text-white group-hover/title:text-emerald-400 transition">
+                          {stock?.symbol}
+                        </h3>
+                        <p className="text-xs text-gray-400">{stock?.name}</p>
+                      </button>
+                    ) : (
+                      <>
+                        <h3 className="font-bold text-sm text-white">{stock?.symbol}</h3>
+                        <p className="text-xs text-gray-400">{stock?.name}</p>
+                      </>
+                    )}
                   </div>
                 </div>
 

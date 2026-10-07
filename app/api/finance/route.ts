@@ -89,9 +89,25 @@ export async function GET(req: Request) {
     })) ?? [];
 
     const stats = serpData?.knowledge_graph?.key_stats?.stats || [];
-    const aboutSnippet = serpData?.knowledge_graph?.about?.[0]?.description?.snippet || null;
+    const aboutFirst = serpData?.knowledge_graph?.about?.[0];
+    const aboutSnippet = aboutFirst?.description?.snippet || null;
+    const aboutTitle = aboutFirst?.title || summary?.title || rawSymbol;
+    const aboutLink = aboutFirst?.description?.link || null;
+    const aboutLinkText = aboutFirst?.description?.link_text || null;
+    const aboutInfo = aboutFirst?.info || [];
     const news = serpData?.news_results || [];
     const related = serpData?.discover_more?.[0]?.items || [];
+
+    const aboutDetails = {
+      title: aboutTitle,
+      snippet: aboutSnippet,
+      link: aboutLink,
+      linkText: aboutLinkText,
+      info: aboutInfo,
+      stats,
+      exchange: summary?.exchange || null,
+      symbol: summary?.stock || rawSymbol,
+    };
 
     return NextResponse.json({
       success: true,
@@ -109,6 +125,7 @@ export async function GET(req: Request) {
       chartPoints,
       stats,
       about: aboutSnippet,
+      aboutDetails,
       news,
       related,
     });

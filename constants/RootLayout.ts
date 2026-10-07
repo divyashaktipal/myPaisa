@@ -3,4 +3,9 @@ export const ROOT_LAYOUT_METADATA = {
   description:
     "Centralize cash flow, track spending live, and automate reports with myPaisa.",
   lang: "en",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 } as const;

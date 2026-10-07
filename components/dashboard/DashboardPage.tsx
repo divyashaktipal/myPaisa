@@ -6,6 +6,8 @@ import {
   DashboardNavbar,
   StatusBanner,
   IndexChartCard,
+  CandlestickChart,
+  CompanyDetailsCard,
   MarketSummaryAndMovers,
   SearchCommandPalette,
   WatchlistSection,
@@ -18,6 +20,7 @@ import type {
 } from "@/types/DashboardPage";
 import {
   DEFAULT_DASHBOARD_STATE,
+  LIVE_INDEX_SYMBOLS,
   DASHBOARD_API_ROUTES,
   STATUS_BANNER_LABELS,
   DASHBOARD_ERROR_MESSAGES,
@@ -265,11 +268,11 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
             watchlist={watchlist}
             onToggleWatchlist={handleToggleWatchlist}
             onOpenSearch={() => setIsSearchOpen(true)}
+            onSelectStock={handleSelectStock}
           />
-        ) : (
-          /* Live Terminal & Chart View */
+        ) : (LIVE_INDEX_SYMBOLS as readonly string[]).includes(selectedIndex) ? (
+          /* Live Indices Terminal: Show Nifty 50, 100, 200 Index Tabs & Area Chart */
           <>
-            {/* Main Interactive Index & Chart Card */}
             <IndexChartCard
               selectedIndex={selectedIndex}
               setSelectedIndex={setSelectedIndex}
@@ -285,7 +288,6 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
               loading={loading}
             />
 
-            {/* Bottom Split Section: Real Market News & Related Markets from SerpApi */}
             {financeData && (
               <MarketSummaryAndMovers
                 indexName={selectedIndex}
@@ -294,6 +296,68 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
                 related={financeData?.related}
                 watchlist={watchlist}
                 onToggleWatchlist={handleToggleWatchlist}
+                onSelectStock={(sym) => {
+                  setSelectedIndex(sym);
+                  setActiveTab("live");
+                }}
+              />
+            )}
+          </>
+        ) : (
+          /* Searched Stock Terminal: Hide Index Tabs, Show Candlestick Chart (Left) + Company Basic Details (Right) */
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Candlestick Chart with Minimal Filters */}
+              <div className="lg:col-span-8">
+                <CandlestickChart
+                  symbol={financeData?.symbol || selectedIndex}
+                  title={financeData?.title || financeData?.aboutDetails?.title}
+                  exchange={financeData?.exchange}
+                  price={financeData?.price ?? null}
+                  changePercent={financeData?.changePercent ?? null}
+                  movement={financeData?.movement ?? null}
+                  movementValue={financeData?.movementValue ?? null}
+                  date={financeData?.date ?? null}
+                  chartPoints={financeData?.chartPoints ?? []}
+                  selectedWindow={selectedWindow}
+                  setSelectedWindow={setSelectedWindow}
+                  loading={loading}
+                  onBackToIndices={() => setSelectedIndex(DEFAULT_DASHBOARD_STATE.selectedIndex)}
+                />
+              </div>
+
+              {/* Right Column: Company Basic Details from SerpApi Knowledge Graph */}
+              <div className="lg:col-span-4">
+                <CompanyDetailsCard
+                  symbol={financeData?.symbol || selectedIndex}
+                  title={financeData?.title || financeData?.aboutDetails?.title}
+                  exchange={financeData?.exchange}
+                  price={financeData?.price ?? null}
+                  changePercent={financeData?.changePercent ?? null}
+                  aboutSnippet={financeData?.aboutDetails?.snippet || financeData?.about}
+                  aboutLink={financeData?.aboutDetails?.link}
+                  aboutInfo={financeData?.aboutDetails?.info}
+                  stats={financeData?.aboutDetails?.stats || financeData?.stats}
+                  isInWatchlist={watchlist.includes(financeData?.symbol || selectedIndex)}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  loading={loading}
+                />
+              </div>
+            </div>
+
+            {/* Bottom Split Section: Real Company News & Discover Items from SerpApi */}
+            {financeData && (
+              <MarketSummaryAndMovers
+                indexName={financeData?.title || selectedIndex}
+                about={financeData?.about}
+                news={financeData?.news}
+                related={financeData?.related}
+                watchlist={watchlist}
+                onToggleWatchlist={handleToggleWatchlist}
+                onSelectStock={(sym) => {
+                  setSelectedIndex(sym);
+                  setActiveTab("live");
+                }}
               />
             )}
           </>

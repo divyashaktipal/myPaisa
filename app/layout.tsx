@@ -15,11 +15,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: ROOT_LAYOUT_METADATA.title,
   description: ROOT_LAYOUT_METADATA.description,
+  icons: ROOT_LAYOUT_METADATA.icons,
 };
 
 const RootLayout = ({ children }: RootLayoutProps) => {
   return (
     <html lang={ROOT_LAYOUT_METADATA.lang} className={inter.variable} suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
+      </head>
       <body
         className="bg-[#fcfdfd] text-[#111827] font-sans antialiased overflow-x-hidden"
         suppressHydrationWarning

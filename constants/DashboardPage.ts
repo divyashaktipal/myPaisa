@@ -4,6 +4,8 @@ import type {
   StatusBannerLabels,
 } from "@/types/DashboardPage";
 
+export const LIVE_INDEX_SYMBOLS = ["NIFTY 50", "NIFTY 100", "NIFTY 200"] as const;
+
 export const DEFAULT_DASHBOARD_STATE: DefaultDashboardState = {
   activeTab: "live",
   selectedIndex: "NIFTY 50",

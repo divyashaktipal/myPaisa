@@ -17,8 +17,11 @@ export interface WatchlistSectionConfig {
   fallbackStockValues: FallbackStockValues;
 }
 
+import type { StockItem } from "./top200Stocks";
+
 export interface WatchlistSectionProps {
   watchlist: string[];
   onToggleWatchlist: (symbol: string) => void;
   onOpenSearch: () => void;
+  onSelectStock?: (stock: StockItem) => void;
 }
