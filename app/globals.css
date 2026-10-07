@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-lime: #d3f234;
+  --color-brand-lime-hover: #c1e222;
+  --color-brand-forest: #18382b;
+  --color-brand-deep: #0f241c;
+  --color-brand-lightgreen: #e8f5c8;
+  --color-brand-surface: #fbfbfb;
+  --color-brand-graytext: #6b7280;
+  --color-brand-border: #e5e7eb;
+
+  --font-sans: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --background: #fcfdfd;
+  --foreground: #111827;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background-color: #fcfdfd;
+  color: #111827;
+  font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+::selection {
+  background: #d3f234;
+  color: #0f241c;
+}
+
+/* Custom glassy overlays and card elevations matching reference.html */
+.glass-pill {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.shadow-soft-card {
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 4px 12px -2px rgba(0, 0, 0, 0.02);
+}
+
+.shadow-floating {
+  box-shadow: 0 25px 50px -12px rgba(16, 42, 31, 0.35);
+}
+
+/* Stock Marquee Animation (Right to Left, Pause on Hover) */
+@keyframes marquee-rtl {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-rtl {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 140s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-rtl-alt {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 160s linear infinite;
+  will-change: transform;
+}
+
+/* Stop when hovered */
+.animate-marquee-rtl:hover,
+.animate-marquee-rtl-alt:hover,
+.marquee-container:hover .animate-marquee-rtl,
+.marquee-container:hover .animate-marquee-rtl-alt {
+  animation-play-state: paused;
+}
