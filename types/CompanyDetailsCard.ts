@@ -13,6 +13,8 @@ export interface CompanyDetailsLabels {
   statsSection: string;
   noDetails: string;
   readMore: string;
+  viewMore?: string;
+  viewLess?: string;
   addToWatchlist: string;
   inWatchlist: string;
   website: string;

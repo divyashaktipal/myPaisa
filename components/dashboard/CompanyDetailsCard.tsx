@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { CompanyDetailsCardProps } from "@/types/CompanyDetailsCard";
 import { COMPANY_DETAILS_LABELS } from "@/constants/CompanyDetailsCard";
 
@@ -19,6 +19,24 @@ const CompanyDetailsCard = ({
   loading = false,
 }: CompanyDetailsCardProps) => {
   const isPositive = changePercent != null && changePercent >= 0;
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
+  // Reset expansion state when viewing a different stock
+  useEffect(() => {
+    setIsDescriptionExpanded(false);
+  }, [symbol]);
+
+  // Compute 20-word truncated description
+  const words = useMemo(() => {
+    if (!aboutSnippet) return [];
+    return aboutSnippet.trim().split(/\s+/);
+  }, [aboutSnippet]);
+
+  const hasMoreThan20Words = words.length > 20;
+  const displayedDescription =
+    hasMoreThan20Words && !isDescriptionExpanded
+      ? `${words.slice(0, 20).join(" ")}...`
+      : aboutSnippet;
 
   // Filter out any empty stats
   const validStats = (stats || []).filter((s) => s?.label && s?.value);
@@ -79,18 +97,36 @@ const CompanyDetailsCard = ({
                 {COMPANY_DETAILS_LABELS.aboutSection}
               </span>
               <p className="text-xs text-gray-300 leading-relaxed">
-                {aboutSnippet}
+                {displayedDescription}
               </p>
-              {aboutLink && (
-                <a
-                  href={aboutLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block text-[11px] text-emerald-400 hover:text-emerald-300 font-medium transition underline underline-offset-2 pt-1"
-                >
-                  {COMPANY_DETAILS_LABELS.readMore}
-                </a>
-              )}
+              <div className="flex items-center gap-3 pt-0.5 flex-wrap">
+                {hasMoreThan20Words && (
+                  <button
+                    type="button"
+                    onClick={() => setIsDescriptionExpanded((prev) => !prev)}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition cursor-pointer flex items-center gap-1"
+                  >
+                    <span>
+                      {isDescriptionExpanded
+                        ? COMPANY_DETAILS_LABELS.viewLess || "View less"
+                        : COMPANY_DETAILS_LABELS.viewMore || "View more"}
+                    </span>
+                    <span className="text-[10px]">
+                      {isDescriptionExpanded ? "▲" : "▼"}
+                    </span>
+                  </button>
+                )}
+                {aboutLink && (
+                  <a
+                    href={aboutLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-[11px] text-gray-400 hover:text-gray-200 font-medium transition underline underline-offset-2"
+                  >
+                    {COMPANY_DETAILS_LABELS.readMore}
+                  </a>
+                )}
+              </div>
             </div>
           )}
 

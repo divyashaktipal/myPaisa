@@ -8,6 +8,7 @@ export interface DashboardNavItemConfig {
   id: string;
   label: string;
   hasDot?: boolean;
+  href?: string;
 }
 
 export interface BrandLogoConfig {
@@ -38,8 +39,8 @@ export interface UserProfileConfig {
 
 export interface DashboardNavbarProps {
   user?: DashboardUser | null;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  onOpenSearch: () => void;
+  activeTab?: string;
+  setActiveTab?: (tab: string) => void;
+  onOpenSearch?: () => void;
   watchlistCount?: number;
 }

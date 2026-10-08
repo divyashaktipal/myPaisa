@@ -7,6 +7,8 @@ export const COMPANY_DETAILS_LABELS: CompanyDetailsLabels = {
   statsSection: "Key Valuation & Stats",
   noDetails: "Corporate profile is currently unavailable for this ticker.",
   readMore: "Source & Filing ↗",
+  viewMore: "View more",
+  viewLess: "View less",
   addToWatchlist: "+ Add to Watchlist",
   inWatchlist: "★ In Watchlist",
   website: "Official Website ↗",

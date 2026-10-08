@@ -6,11 +6,14 @@ import type {
 
 export const LIVE_INDEX_SYMBOLS = ["NIFTY 50", "NIFTY 100", "NIFTY 200"] as const;
 
+export const DEFAULT_CHART_STOCK_SYMBOL = "HDFCBANK";
+
 export const DEFAULT_DASHBOARD_STATE: DefaultDashboardState = {
   activeTab: "live",
   selectedIndex: "NIFTY 50",
   selectedWindow: "1D",
   initialWatchlist: ["TRENT", "BSE", "KOTAKBANK"],
+  defaultChartStock: DEFAULT_CHART_STOCK_SYMBOL,
 };
 
 export const DASHBOARD_API_ROUTES: DashboardApiRoutes = {

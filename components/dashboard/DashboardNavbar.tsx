@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { DashboardNavbarProps } from "@/types/DashboardNavbar";
 import {
@@ -20,8 +21,23 @@ const DashboardNavbar = ({
   onOpenSearch,
   watchlistCount = 0,
 }: DashboardNavbarProps) => {
+  const pathname = usePathname();
+  const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Derive active tab from prop or pathname
+  const resolvedActiveTab =
+    activeTab ||
+    (pathname?.startsWith("/dashboard/chart")
+      ? "chart"
+      : pathname?.startsWith("/dashboard/news")
+        ? "news"
+        : pathname?.startsWith("/dashboard/screener")
+          ? "screener"
+          : pathname?.startsWith("/dashboard/watchlist")
+            ? "watchlist"
+            : "live");
 
   // Initial for user avatar
   const userInitial =
@@ -42,13 +58,14 @@ const DashboardNavbar = ({
           {/* Desktop Nav Items */}
           <div className="hidden lg:flex items-center gap-1 bg-[#0f1622] p-1 rounded-xl border border-[#1b2535]">
             {DASHBOARD_NAV_ITEMS.map((item) => {
-              const isActive = activeTab === item.id;
+              const isActive = resolvedActiveTab === item.id;
               const badge = item.id === "watchlist" && watchlistCount > 0 ? watchlistCount : undefined;
+              const targetHref = item.href || `/dashboard/${item.id}`;
               return (
-                <button
+                <Link
                   key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
+                  href={targetHref}
+                  onClick={() => setActiveTab?.(item.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${isActive
                     ? "bg-[#1d2738] text-white shadow-sm"
                     : "text-gray-400 hover:text-gray-200 hover:bg-[#16202e]"
@@ -65,7 +82,7 @@ const DashboardNavbar = ({
                       {badge}
                     </span>
                   )}
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -113,16 +130,16 @@ const DashboardNavbar = ({
                   <p className="font-semibold truncate text-white">{user?.name || USER_PROFILE_CONFIG.defaultName}</p>
                   <p className="text-[11px] text-gray-400 truncate">{user?.email || USER_PROFILE_CONFIG.defaultEmail}</p>
                 </div>
-                <button
-                  type="button"
+                <Link
+                  href="/dashboard/watchlist"
                   onClick={() => {
-                    setActiveTab("watchlist");
+                    setActiveTab?.("watchlist");
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1a2638] text-gray-200 transition"
+                  className="w-full block text-left px-3 py-2 rounded-lg hover:bg-[#1a2638] text-gray-200 transition"
                 >
                   {USER_PROFILE_CONFIG.watchlistText} ({watchlistCount})
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: USER_PROFILE_CONFIG.signOutCallbackUrl })}
@@ -151,25 +168,25 @@ const DashboardNavbar = ({
       {mobileMenuOpen && (
         <div className="lg:hidden mt-3 p-3 rounded-2xl bg-[#101724] border border-[#1d283c] flex flex-col gap-1.5">
           {DASHBOARD_NAV_ITEMS.map((item) => (
-            <button
+            <Link
               key={item.id}
-              type="button"
+              href={item.href || `/dashboard/${item.id}`}
               onClick={() => {
-                setActiveTab(item.id);
+                setActiveTab?.(item.id);
                 setMobileMenuOpen(false);
               }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition ${activeTab === item.id ? "bg-[#1d293d] text-white" : "text-gray-400 hover:text-white"
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition ${resolvedActiveTab === item.id ? "bg-[#1d293d] text-white" : "text-gray-400 hover:text-white"
                 }`}
             >
               <NavItemIcon id={item.id} />
               <span>{item.label}</span>
-            </button>
+            </Link>
           ))}
           <button
             type="button"
             onClick={() => {
               setMobileMenuOpen(false);
-              onOpenSearch();
+              onOpenSearch?.();
             }}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-gray-400 bg-[#162030] mt-1"
           >

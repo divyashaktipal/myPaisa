@@ -70,6 +70,15 @@ export function normalizeGoogleFinanceSymbol(raw: string): string {
     return "SENSEX:INDEXBOM";
   }
 
+  // Handle HDFC ticker mapping to HDFCBANK:NSE (HDFC merged into HDFCBANK)
+  if (
+    /^hdfc$/i.test(clean) ||
+    clean === "HDFC:NSE" ||
+    clean === "NSE:HDFC"
+  ) {
+    return "HDFCBANK:NSE";
+  }
+
   // Handle prefix format: INDEXNSE:SYMBOL -> SYMBOL:INDEXNSE
   if (clean.startsWith("INDEXNSE:")) {
     return `${clean.replace("INDEXNSE:", "")}:INDEXNSE`;

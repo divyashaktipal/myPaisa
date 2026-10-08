@@ -132,12 +132,12 @@ const CandlestickChart = ({
     const timeLabels =
       generatedCandles.length >= 2
         ? [
-            generatedCandles[0],
-            generatedCandles[Math.floor(generatedCandles.length * 0.25)],
-            generatedCandles[Math.floor(generatedCandles.length * 0.5)],
-            generatedCandles[Math.floor(generatedCandles.length * 0.75)],
-            generatedCandles[generatedCandles.length - 1],
-          ]
+          generatedCandles[0],
+          generatedCandles[Math.floor(generatedCandles.length * 0.25)],
+          generatedCandles[Math.floor(generatedCandles.length * 0.5)],
+          generatedCandles[Math.floor(generatedCandles.length * 0.75)],
+          generatedCandles[generatedCandles.length - 1],
+        ]
         : [];
 
     // Line Path for optional Line Mode
@@ -159,9 +159,8 @@ const CandlestickChart = ({
     }, "");
 
     const aPath = lPath
-      ? `${lPath} L ${chartWidth} ${paddingTop + chartHeight} L 0 ${
-          paddingTop + chartHeight
-        } Z`
+      ? `${lPath} L ${chartWidth} ${paddingTop + chartHeight} L 0 ${paddingTop + chartHeight
+      } Z`
       : "";
 
     return {
@@ -188,64 +187,63 @@ const CandlestickChart = ({
 
   return (
     <div className="rounded-2xl bg-[#0b121c] border border-[#1a2535] p-4 sm:p-6 shadow-2xl text-white">
-      {/* Top Header: Stock Meta, Return Button & Minimal Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#182333]">
-        {/* Left: Back Button & Stock Identity */}
-        <div className="flex items-center gap-3">
-          {onBackToIndices && (
+      {/* Top Header: Live Indices Button (Top), Stock Identity (Below), Filters (Below) */}
+      <div className="flex flex-col gap-3 pb-4 border-b border-[#182333]">
+        {/* Top: Live Indices Button */}
+        {/* {onBackToIndices && (
+          <div className="flex items-center">
             <button
               type="button"
               onClick={onBackToIndices}
-              className="px-2.5 py-1.5 rounded-xl bg-[#111c2a] hover:bg-[#182638] border border-[#1e2e42] text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="px-3 py-1.5 rounded-xl bg-[#111c2a] hover:bg-[#182638] border border-[#1e2e42] text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer shadow-sm group w-fit"
               title="Return to Live Indices (Nifty 50, 100, 200)"
             >
-              <span>←</span>
+              <span className="transition-transform group-hover:-translate-x-0.5">←</span>
               <span>{CANDLESTICK_MESSAGES.backToIndices}</span>
             </button>
-          )}
+          </div>
+        )} */}
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-2xl font-extrabold tracking-tight font-mono text-white">
-                {symbol}
+        {/* Just Below: Stock Name, Exchange & Title */}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl sm:text-2xl font-extrabold tracking-tight font-mono text-white">
+              {symbol}
+            </span>
+            {exchange && (
+              <span className="px-2 py-0.5 rounded-md bg-[#111c2b] border border-[#1f2e42] text-[11px] font-mono text-emerald-400 font-semibold">
+                {exchange}
               </span>
-              {exchange && (
-                <span className="px-2 py-0.5 rounded-md bg-[#111c2b] border border-[#1f2e42] text-[11px] font-mono text-emerald-400 font-semibold">
-                  {exchange}
-                </span>
-              )}
-            </div>
-            {title && title !== symbol && (
-              <p className="text-xs text-gray-400 font-medium truncate max-w-[280px] sm:max-w-md">
-                {title}
-              </p>
             )}
           </div>
+          {title && title !== symbol && (
+            <p className="text-xs text-gray-400 font-medium truncate max-w-md sm:max-w-xl mt-0.5">
+              {title}
+            </p>
+          )}
         </div>
 
-        {/* Right: Mode Switcher & Minimal Filters */}
-        <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+        {/* And Then Just the Filter */}
+        <div className="flex items-center gap-2 flex-wrap pt-0.5">
           {/* Chart Display Mode: Candles vs Line */}
           <div className="flex items-center gap-1 bg-[#090f17] p-1 rounded-xl border border-[#162130]">
             <button
               type="button"
               onClick={() => setChartMode("candles")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                chartMode === "candles"
-                  ? "bg-[#182436] text-white shadow-sm font-semibold"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${chartMode === "candles"
+                ? "bg-[#182436] text-white shadow-sm font-semibold"
+                : "text-gray-400 hover:text-gray-200"
+                }`}
             >
               🕯️ {CANDLESTICK_MESSAGES.candlestickMode}
             </button>
             <button
               type="button"
               onClick={() => setChartMode("line")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                chartMode === "line"
-                  ? "bg-[#182436] text-white shadow-sm font-semibold"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${chartMode === "line"
+                ? "bg-[#182436] text-white shadow-sm font-semibold"
+                : "text-gray-400 hover:text-gray-200"
+                }`}
             >
               📈 {CANDLESTICK_MESSAGES.lineMode}
             </button>
@@ -258,11 +256,10 @@ const CandlestickChart = ({
                 key={tf}
                 type="button"
                 onClick={() => setSelectedWindow(tf)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                  selectedWindow === tf
-                    ? "bg-[#182436] text-white font-semibold shadow-sm"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${selectedWindow === tf
+                  ? "bg-[#182436] text-white font-semibold shadow-sm"
+                  : "text-gray-400 hover:text-gray-200"
+                  }`}
               >
                 {tf}
               </button>
@@ -297,11 +294,10 @@ const CandlestickChart = ({
 
               {changePercent != null && (
                 <span
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono border ${
-                    isPositive
-                      ? "bg-emerald-950/80 text-emerald-400 border-emerald-800/60"
-                      : "bg-rose-950/80 text-rose-400 border-rose-800/60"
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono border ${isPositive
+                    ? "bg-emerald-950/80 text-emerald-400 border-emerald-800/60"
+                    : "bg-rose-950/80 text-rose-400 border-rose-800/60"
+                    }`}
                 >
                   {isPositive ? "+" : ""}
                   {changePercent.toFixed(2)}%
@@ -548,9 +544,8 @@ const CandlestickChart = ({
                     }}
                   >
                     <span
-                      className={`inline-block px-2 py-0.5 rounded-md font-mono font-bold text-xs shadow-lg ${
-                        isPositive ? "bg-[#10b981] text-[#052e16]" : "bg-[#f43f5e] text-white"
-                      }`}
+                      className={`inline-block px-2 py-0.5 rounded-md font-mono font-bold text-xs shadow-lg ${isPositive ? "bg-[#10b981] text-[#052e16]" : "bg-[#f43f5e] text-white"
+                        }`}
                     >
                       {price.toFixed(2)}
                     </span>

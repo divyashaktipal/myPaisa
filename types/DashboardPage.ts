@@ -50,6 +50,7 @@ export interface DefaultDashboardState {
   selectedIndex: string;
   selectedWindow: string;
   initialWatchlist: string[];
+  defaultChartStock?: string;
 }
 
 export interface DashboardApiRoutes {
