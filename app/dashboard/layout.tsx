@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import { DASHBOARD_ROUTE_PAGE_CONFIG } from "@/constants/DashboardRoutePage";
 import { DashboardShell } from "@/components/dashboard";
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardLayout({
   children,
 }: {

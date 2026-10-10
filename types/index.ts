@@ -51,4 +51,5 @@ export * from "./DashboardShell";
 export * from "./StockNewsSection";
 export * from "./MarketNews";
 export * from "./MarketHeatmap";
+export * from "./Signals";
 

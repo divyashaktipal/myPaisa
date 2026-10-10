@@ -13,6 +13,8 @@ import {
   WatchlistSection,
   MarketHeatmapSection,
   TanStackStockChart,
+  SignalsSection,
+  SignalsPageContent,
 } from "@/components/dashboard";
 import type { StockItem } from "@/types/top200Stocks";
 import type { HeatmapStock } from "@/types/MarketHeatmap";
@@ -431,6 +433,9 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
               />
             )}
           </div>
+        ) : activeTab === "signals" ? (
+          /* Signals Tab */
+          <SignalsPageContent />
         ) : activeTab === "news" ? (
           /* News Tab */
           <MarketSummaryAndMovers
@@ -443,11 +448,46 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
             onSelectStock={handleSelectStock}
           />
         ) : (
-          /* Live Tab: ONLY SHOW ONE BIG CARD WITH DIFFERENT GRID */
-          <MarketHeatmapSection
-            onSelectStock={handleSelectStock}
-            selectedStockSymbol={selectedIndex}
-          />
+          /* Live View: Live Indices Section followed by Market Heatmap Section */
+          <div className="space-y-6">
+            <IndexChartCard
+              selectedIndex={selectedIndex}
+              setSelectedIndex={setSelectedIndex}
+              selectedWindow={selectedWindow}
+              setSelectedWindow={setSelectedWindow}
+              price={financeData?.price ?? null}
+              changePercent={financeData?.changePercent ?? null}
+              movement={financeData?.movement ?? null}
+              movementValue={financeData?.movementValue ?? null}
+              date={financeData?.date ?? null}
+              chartPoints={financeData?.chartPoints ?? []}
+              stats={financeData?.stats ?? []}
+              loading={loading}
+            />
+
+            <MarketHeatmapSection
+              onSelectStock={handleSelectStock}
+              selectedStockSymbol={selectedIndex}
+            />
+
+            <SignalsSection
+              onSelectStock={(stock) => {
+                handleSelectStock({ symbol: stock.symbol, slug: stock.slug });
+              }}
+            />
+
+            {financeData && (
+              <MarketSummaryAndMovers
+                indexName={selectedIndex}
+                about={financeData?.about}
+                news={financeData?.news}
+                related={financeData?.related}
+                watchlist={watchlist}
+                onToggleWatchlist={handleToggleWatchlist}
+                onSelectStock={handleSelectStock}
+              />
+            )}
+          </div>
         )}
       </main>
 

@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { WatchlistSection, useDashboard } from "@/components/dashboard";
 import type { StockItem } from "@/types/top200Stocks";
 
-export const dynamic = "force-dynamic";
-
 const WatchlistPage = () => {
   const router = useRouter();
   const { watchlist, toggleWatchlist, openSearch } = useDashboard();

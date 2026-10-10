@@ -37,4 +37,5 @@ export * from "./UnderDevelopmentSection";
 export * from "./StockNewsSection";
 export * from "./MarketNews";
 export * from "./MarketHeatmap";
+export * from "./Signals";
 

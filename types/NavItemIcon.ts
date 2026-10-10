@@ -1,4 +1,4 @@
-export type NavItemId = "live" | "chart" | "news" | "screener" | "watchlist" | string;
+export type NavItemId = "live" | "chart" | "news" | "signals" | "screener" | "watchlist" | string;
 
 export interface NavItemIconProps {
   id: NavItemId;

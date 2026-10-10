@@ -33,8 +33,8 @@ const DashboardNavbar = ({
       ? "chart"
       : pathname?.startsWith("/dashboard/news")
         ? "news"
-        : pathname?.startsWith("/dashboard/screener")
-          ? "screener"
+        : pathname?.startsWith("/dashboard/signals") || pathname?.startsWith("/dashboard/live/signals")
+          ? "signals"
           : pathname?.startsWith("/dashboard/watchlist")
             ? "watchlist"
             : "live");
@@ -108,10 +108,10 @@ const DashboardNavbar = ({
           </button>
 
           {/* Market Status Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0f1724] border border-[#1d293d] text-xs text-gray-300">
+          {/* <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0f1724] border border-[#1d293d] text-xs text-gray-300">
             <span className={`w-2 h-2 rounded-full ${MARKET_STATUS_BADGE.dotColor}`} />
             <span className="font-medium text-gray-300">{MARKET_STATUS_BADGE.label}</span>
-          </div>
+          </div> */}
 
           {/* User Profile Avatar with dropdown */}
           <div className="relative">

@@ -10,7 +10,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItemConfig[] = [
   { id: "live", label: "Live", hasDot: true, href: "/dashboard/live" },
   { id: "chart", label: "Chart", href: "/dashboard/chart" },
   { id: "news", label: "News", href: "/dashboard/news" },
-  { id: "screener", label: "Screener", href: "/dashboard/screener" },
+  { id: "signals", label: "Signals", href: "/dashboard/signals" },
   { id: "watchlist", label: "Watchlist", href: "/dashboard/watchlist" },
 ];
 

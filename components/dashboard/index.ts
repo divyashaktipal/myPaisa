@@ -15,4 +15,7 @@ export { default as StockNewsSection } from "./StockNewsSection";
 export { default as MarketNewsFeed } from "./MarketNewsFeed";
 export { default as MarketHeatmapSection } from "./MarketHeatmapSection";
 export { default as TanStackStockChart } from "./TanStackStockChart";
+export { default as SignalsSection } from "./SignalsSection";
+export { default as SignalsPageContent } from "./SignalsPageContent";
+export { default as ChartTerminal } from "./ChartTerminal";
 
