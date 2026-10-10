@@ -4,7 +4,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ROOT_LAYOUT_METADATA } from "@/constants/RootLayout";
 import type { RootLayoutProps } from "@/types/RootLayout";
-import { QueryProvider } from "@/components/providers";
+import { QueryProvider, AnalyticsProvider } from "@/components/providers";
+import { env } from "@/config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,6 +31,10 @@ const RootLayout = ({ children }: RootLayoutProps) => {
         suppressHydrationWarning
       >
         <QueryProvider>{children}</QueryProvider>
+        <AnalyticsProvider
+          gaId={env.GA_ID}
+          clarityId={env.CLARITY_ID}
+        />
       </body>
     </html>
   );

@@ -12,6 +12,8 @@ export const env: EnvConfig = {
   NODE_ENV: process.env.NODE_ENV || "development",
   IS_DEV: process.env.NODE_ENV === "development",
   IS_PROD: process.env.NODE_ENV === "production",
+  GA_ID: process.env.GA_ID || "",
+  CLARITY_ID: process.env.CLARITY_ID || "",
 };
 
 export default env;

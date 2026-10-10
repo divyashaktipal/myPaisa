@@ -10,4 +10,6 @@ export interface EnvConfig {
   readonly NODE_ENV: string;
   readonly IS_DEV: boolean;
   readonly IS_PROD: boolean;
+  readonly GA_ID: string;
+  readonly CLARITY_ID: string;
 }
