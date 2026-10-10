@@ -45,7 +45,7 @@ export interface ChartMessages {
 
 export interface IndexChartCardProps {
   selectedIndex: string;
-  setSelectedIndex: (index: string) => void;
+  setSelectedIndex?: (index: string) => void;
   selectedWindow: string;
   setSelectedWindow: (window: string) => void;
   price: number | null;
@@ -56,4 +56,6 @@ export interface IndexChartCardProps {
   chartPoints?: ChartPoint[];
   stats?: ChartStat[];
   loading?: boolean;
+  showIndexTabs?: boolean;
+  className?: string;
 }

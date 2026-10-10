@@ -87,16 +87,16 @@ const SignalsPageContent: React.FC = () => {
           <span>{SIGNALS_PAGE_CONFIG.backToLiveText}</span>
         </button>
 
-        <span className="text-xs text-gray-500 font-mono hidden sm:inline">
+        {/* <span className="text-xs text-gray-500 font-mono hidden sm:inline">
           {summary.asOf}
-        </span>
+        </span> */}
       </div>
 
       {/* Hero Header Section matching Screenshot 2 */}
       <div className="space-y-4">
-        <div className="text-xs font-mono text-gray-500 tracking-wider">
+        {/* <div className="text-xs font-mono text-gray-500 tracking-wider">
           {summary.totalSignals} signals • {summary.asOf}
-        </div>
+        </div> */}
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight">
           {SIGNALS_PAGE_CONFIG.heading} <br />
@@ -148,11 +148,10 @@ const SignalsPageContent: React.FC = () => {
               key={item.id}
               type="button"
               onClick={() => setDirectionFilter(item.id as SignalDirectionFilter)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                directionFilter === item.id
-                  ? "bg-[#1d2b40] text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${directionFilter === item.id
+                ? "bg-[#1d2b40] text-white shadow-sm"
+                : "text-gray-400 hover:text-gray-200"
+                }`}
             >
               {item.label}
             </button>
@@ -166,11 +165,10 @@ const SignalsPageContent: React.FC = () => {
               key={cat.id}
               type="button"
               onClick={() => setCategoryFilter(cat.id as SignalCategoryFilter)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                categoryFilter === cat.id
-                  ? "bg-[#1d2b40] text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${categoryFilter === cat.id
+                ? "bg-[#1d2b40] text-white shadow-sm"
+                : "text-gray-400 hover:text-gray-200"
+                }`}
             >
               {cat.label}
             </button>
@@ -209,9 +207,8 @@ const SignalsPageContent: React.FC = () => {
                     {stock.symbol}
                   </h3>
                   <span
-                    className={`text-base font-mono font-bold ${
-                      isPositive ? "text-emerald-400" : "text-rose-400"
-                    }`}
+                    className={`text-base font-mono font-bold ${isPositive ? "text-emerald-400" : "text-rose-400"
+                      }`}
                   >
                     {isPositive ? "+" : ""}
                     {stock.changePercent.toFixed(2)}%
@@ -274,9 +271,8 @@ const SignalsPageContent: React.FC = () => {
               >
                 {/* Left Colored Vertical Indicator Accent Line */}
                 <div
-                  className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                    isPositive ? "bg-emerald-500" : "bg-rose-500"
-                  }`}
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 ${isPositive ? "bg-emerald-500" : "bg-rose-500"
+                    }`}
                   aria-hidden="true"
                 />
 
@@ -311,11 +307,10 @@ const SignalsPageContent: React.FC = () => {
                   </span>
 
                   <span
-                    className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold ${
-                      isPositive
-                        ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/60"
-                        : "bg-rose-950/80 text-rose-400 border border-rose-800/60"
-                    }`}
+                    className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold ${isPositive
+                      ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/60"
+                      : "bg-rose-950/80 text-rose-400 border border-rose-800/60"
+                      }`}
                   >
                     {isPositive ? "+" : ""}
                     {item.changePercent.toFixed(2)}%

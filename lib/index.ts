@@ -5,3 +5,4 @@ export * from "./mongodb";
 export * from "./serpapi";
 export * from "./top200Stocks";
 export * from "./treemapLayout";
+export * from "./gemini";

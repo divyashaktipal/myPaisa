@@ -148,7 +148,12 @@ const LegalPageLayout = ({ data }: LegalPageLayoutProps) => {
 
       {/* Footer Minimal */}
       <footer className="w-full border-t border-white/10 bg-[#070b11] py-8 text-center text-xs text-gray-500">
-        <p>{LEGAL_LAYOUT_CONFIG.footerCopyrightText}</p>
+        <div className="max-w-4xl mx-auto px-4 space-y-2">
+          <p>{LEGAL_LAYOUT_CONFIG.footerCopyrightText}</p>
+          <p className="text-[11px] text-gray-600 leading-relaxed">
+            Disclaimer: myPaisa is an independent personal project developed strictly for educational and informational purposes. It is NOT registered, certified, or regulated by SEBI (Securities and Exchange Board of India).
+          </p>
+        </div>
       </footer>
     </div>
   );

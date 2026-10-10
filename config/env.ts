@@ -2,6 +2,11 @@ import type { EnvConfig } from "@/types/env";
 
 export const env: EnvConfig = {
   SERPAPI_KEY: process.env.SERPAPI_KEY || "",
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || "",
+  GEMINI_API_ENDPOINT:
+    process.env.GEMINI_API_ENDPOINT ||
+    "https://generativelanguage.googleapis.com/v1beta/models",
+  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.8-flash",
   MONGODB_URI: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/myPaisa",
   AUTH_SECRET: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "",
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "",

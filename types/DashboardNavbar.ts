@@ -30,7 +30,7 @@ export interface MarketStatusBadgeConfig {
 
 export interface UserProfileConfig {
   defaultName: string;
-  defaultEmail: string;
+  accountStatus: string;
   defaultInitial: string;
   watchlistText: string;
   signOutText: string;

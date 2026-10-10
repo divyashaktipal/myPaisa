@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardNavbar, SearchCommandPalette } from "@/components/dashboard";
+import { FOOTER_CONTENT } from "@/constants/Footer";
 import { DashboardContext } from "./DashboardContext";
 import type { DashboardShellProps, DashboardContextValue } from "@/types/DashboardShell";
 import type { StockItem } from "@/types/top200Stocks";
@@ -168,6 +170,35 @@ const DashboardShell = ({ user, children }: DashboardShellProps) => {
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6">
           {children}
         </main>
+
+        {/* Universal Dashboard Footer with SEBI & Personal Project Disclaimer */}
+        <footer className="w-full border-t border-[#131d2b] bg-[#05080e] py-8 text-xs text-gray-500 mt-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-white text-sm tracking-tight font-mono">
+                  <span className="text-emerald-400">my</span>Paisa
+                </span>
+                <span className="text-gray-600">·</span>
+                <span className="text-gray-400">{FOOTER_CONTENT.copyright}</span>
+              </div>
+              <div className="flex items-center gap-6 font-medium text-gray-400">
+                {FOOTER_CONTENT.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="hover:text-emerald-400 transition"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-500 leading-relaxed pt-2 border-t border-[#101724]">
+              {FOOTER_CONTENT.disclaimer}
+            </p>
+          </div>
+        </footer>
 
         {/* ⌘K Global Search Command Palette */}
         <SearchCommandPalette

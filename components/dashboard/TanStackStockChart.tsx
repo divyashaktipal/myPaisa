@@ -134,132 +134,9 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
     <div className="w-full bg-[#080d15] border border-[#1a2538] rounded-2xl p-5 md:p-6 shadow-2xl relative overflow-hidden transition-all duration-300">
       {/* Subtle background glow */}
       <div
-        className={`absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-20 ${
-          isPositive ? "bg-emerald-500" : "bg-rose-500"
-        }`}
+        className={`absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-20 ${isPositive ? "bg-emerald-500" : "bg-rose-500"
+          }`}
       />
-
-      {/* Top Header Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#141e2e]">
-        {/* Left: Quick status tag & Timeframe selector */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#0e1624] border border-[#1c293d]">
-            <span
-              className={`w-2 h-2 rounded-full animate-pulse ${
-                isPositive ? "bg-emerald-400" : "bg-rose-400"
-              }`}
-            />
-            <span className="text-[11px] font-mono uppercase tracking-wider text-gray-300 font-semibold">
-              TanStack Chart View
-            </span>
-          </div>
-
-          {/* Timeframe Buttons */}
-          <div className="flex items-center gap-1 bg-[#0b121d] p-1 rounded-xl border border-[#162234]">
-            {CHART_WINDOWS.map((win) => {
-              const active = currentWindow === win;
-              return (
-                <button
-                  key={win}
-                  type="button"
-                  onClick={() => handleWindowChange(win)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition font-mono ${
-                    active
-                      ? "bg-[#1f2b3e] text-white shadow-sm"
-                      : "text-gray-400 hover:text-gray-200 hover:bg-[#121c2c]"
-                  }`}
-                >
-                  {win}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2">
-          {onOpenFullTerminal && (
-            <button
-              type="button"
-              onClick={() => onOpenFullTerminal(stock.symbol)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
-            >
-              <span>Terminal</span>
-              <span>↗</span>
-            </button>
-          )}
-
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-xl bg-[#0f1724] hover:bg-[#152132] text-gray-400 hover:text-white border border-[#1b2638] text-xs transition cursor-pointer"
-              aria-label="Close chart"
-              title="Close chart view"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Chart Canvas Area */}
-      <div className="relative mt-4 mb-5 w-full min-h-[280px] sm:min-h-[320px] flex items-center justify-center rounded-xl bg-[#050910] border border-[#121c2c] p-2 sm:p-4 overflow-hidden">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <div
-              className={`w-8 h-8 rounded-full border-2 border-t-transparent animate-spin ${
-                isPositive ? "border-emerald-400" : "border-rose-400"
-              }`}
-            />
-            <span className="text-xs text-gray-400 font-mono tracking-wider">
-              Loading real tick data for {stock.symbol}...
-            </span>
-          </div>
-        ) : isError || !chartDefinition || sampledPoints.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-            <span className="text-2xl">📊</span>
-            <p className="text-sm text-gray-300 font-medium">
-              Real-time chart stream for {stock.symbol}
-            </p>
-            <p className="text-xs text-gray-500 max-w-sm">
-              Current live price is ₹{displayPrice.toLocaleString("en-IN")}. Detailed intraday chart points are updating from the exchange.
-            </p>
-          </div>
-        ) : (
-          <div className="w-full h-full flex flex-col justify-between">
-            {/* Real TanStack Chart Component */}
-            <div className="w-full overflow-hidden [&_.ts-chart-surface]:!overflow-visible [&_svg]:!overflow-visible">
-              <Chart
-                definition={chartDefinition}
-                ariaLabel={`${stock.name} price chart`}
-                ariaDescription={`Price history for ${stock.name} (${stock.symbol})`}
-                height={260}
-                className="w-full"
-                onFocusChange={(point) => {
-                  if (point?.datum) {
-                    const datum = point.datum as { time: string; price: number };
-                    setHoveredPoint(datum);
-                  } else {
-                    setHoveredPoint(null);
-                  }
-                }}
-              />
-            </div>
-
-            {/* Time labels axis strip */}
-            <div className="flex items-center justify-between text-[11px] font-mono text-gray-500 pt-2 border-t border-[#101826] px-2">
-              <span>{sampledPoints[0]?.time || "09:15 AM"}</span>
-              {hoveredPoint && (
-                <span className="text-white bg-[#141e2e] px-2 py-0.5 rounded border border-[#223148] font-bold">
-                  {hoveredPoint.time} · ₹{hoveredPoint.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </span>
-              )}
-              <span>{sampledPoints[sampledPoints.length - 1]?.time || "03:30 PM"}</span>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* "Followed by their stock name (means slug)" - Detailed Information Card */}
       <div className="bg-[#0b121e] border border-[#162336] rounded-xl p-4 sm:p-5">
@@ -273,9 +150,9 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
               <span className="px-2 py-0.5 rounded-md bg-[#162235] text-gray-300 font-mono text-xs font-semibold border border-[#223149]">
                 {stock.symbol}
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 font-mono text-xs border border-emerald-800/60" title="Stock Slug">
+              {/* <span className="px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 font-mono text-xs border border-emerald-800/60" title="Stock Slug">
                 slug: <span className="underline font-bold">{stock.slug}</span>
-              </span>
+              </span> */}
               <span className="px-2 py-0.5 rounded-md bg-blue-950/40 text-blue-300 text-[11px] font-mono border border-blue-800/40">
                 {stock.sector}
               </span>
@@ -292,9 +169,8 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
               ₹{displayPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
             <div
-              className={`text-xs sm:text-sm font-semibold font-mono flex items-center md:justify-end gap-1.5 mt-0.5 ${
-                isPositive ? "text-emerald-400" : "text-rose-400"
-              }`}
+              className={`text-xs sm:text-sm font-semibold font-mono flex items-center md:justify-end gap-1.5 mt-0.5 ${isPositive ? "text-emerald-400" : "text-rose-400"
+                }`}
             >
               <span>{isPositive ? "▲" : "▼"}</span>
               <span>
@@ -345,6 +221,126 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
           </div>
         </div>
       </div>
+      {/* Top Header Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#141e2e]">
+        {/* Left: Quick status tag & Timeframe selector */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#0e1624] border border-[#1c293d]">
+            <span
+              className={`w-2 h-2 rounded-full animate-pulse ${isPositive ? "bg-emerald-400" : "bg-rose-400"
+                }`}
+            />
+            <span className="text-[11px] font-mono uppercase tracking-wider text-gray-300 font-semibold">
+              TanStack Chart View
+            </span>
+          </div> */}
+
+          {/* Timeframe Buttons */}
+          <div className="flex items-center gap-1 bg-[#0b121d] p-1 rounded-xl border border-[#162234]">
+            {CHART_WINDOWS.map((win) => {
+              const active = currentWindow === win;
+              return (
+                <button
+                  key={win}
+                  type="button"
+                  onClick={() => handleWindowChange(win)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition font-mono ${active
+                    ? "bg-[#1f2b3e] text-white shadow-sm"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-[#121c2c]"
+                    }`}
+                >
+                  {win}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {onOpenFullTerminal && (
+            <button
+              type="button"
+              onClick={() => onOpenFullTerminal(stock.symbol)}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Terminal</span>
+              <span>↗</span>
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-xl bg-[#0f1724] hover:bg-[#152132] text-gray-400 hover:text-white border border-[#1b2638] text-xs transition cursor-pointer"
+              aria-label="Close chart"
+              title="Close chart view"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Chart Canvas Area */}
+      <div className="relative mt-4 mb-5 w-full min-h-[280px] sm:min-h-[320px] flex items-center justify-center rounded-xl bg-[#050910] border border-[#121c2c] p-2 sm:p-4 overflow-hidden">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <div
+              className={`w-8 h-8 rounded-full border-2 border-t-transparent animate-spin ${isPositive ? "border-emerald-400" : "border-rose-400"
+                }`}
+            />
+            <span className="text-xs text-gray-400 font-mono tracking-wider">
+              Loading real tick data for {stock.symbol}...
+            </span>
+          </div>
+        ) : isError || !chartDefinition || sampledPoints.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+            <span className="text-2xl">📊</span>
+            <p className="text-sm text-gray-300 font-medium">
+              Real-time chart stream for {stock.symbol}
+            </p>
+            <p className="text-xs text-gray-500 max-w-sm">
+              Current live price is ₹{displayPrice.toLocaleString("en-IN")}. Detailed intraday chart points are updating from the exchange.
+            </p>
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col justify-between">
+            {/* Real TanStack Chart Component */}
+            <div className="w-full overflow-hidden [&_.ts-chart-surface]:!overflow-visible [&_svg]:!overflow-visible">
+              <Chart
+                definition={chartDefinition}
+                ariaLabel={`${stock.name} price chart`}
+                ariaDescription={`Price history for ${stock.name} (${stock.symbol})`}
+                height={260}
+                className="w-full"
+                onFocusChange={(point) => {
+                  if (point?.datum) {
+                    const datum = point.datum as { time: string; price: number };
+                    setHoveredPoint(datum);
+                  } else {
+                    setHoveredPoint(null);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Time labels axis strip */}
+            <div className="flex items-center justify-between text-[11px] font-mono text-gray-500 pt-2 border-t border-[#101826] px-2">
+              <span>{sampledPoints[0]?.time || "09:15 AM"}</span>
+              {hoveredPoint && (
+                <span className="text-white bg-[#141e2e] px-2 py-0.5 rounded border border-[#223148] font-bold">
+                  {hoveredPoint.time} · ₹{hoveredPoint.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              )}
+              <span>{sampledPoints[sampledPoints.length - 1]?.time || "03:30 PM"}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import YahooFinance from "yahoo-finance2";
 import { HEATMAP_SECTORS_CONFIG } from "@/constants/MarketHeatmap";
 import type {
@@ -160,6 +161,14 @@ async function fetchRealMarketHeatmap(): Promise<MarketHeatmapResponse> {
 }
 
 export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized: Sign in required to access market heatmap data." },
+      { status: 401 }
+    );
+  }
+
   const now = Date.now();
 
   // Return cached data if fresh

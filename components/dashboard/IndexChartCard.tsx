@@ -26,6 +26,8 @@ const IndexChartCard = ({
   chartPoints = [],
   stats = [],
   loading = false,
+  showIndexTabs = false,
+  className = "",
 }: IndexChartCardProps) => {
   const gradientId = useId();
   const [hoveredPoint, setHoveredPoint] = useState<HoveredChartPoint | null>(null);
@@ -107,25 +109,62 @@ const IndexChartCard = ({
   }, [chartPoints, chartWidth, chartHeight, price]);
 
   return (
-    <div className="rounded-2xl bg-[#0e1622] border border-[#1b2637] p-5 sm:p-7 shadow-xl text-white">
+    <div className={`rounded-2xl bg-[#0e1622] border border-[#1b2637] p-5 sm:p-7 shadow-xl text-white ${className}`}>
       {/* Top Controls: Index Tabs & Timeframes */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#1b2535]">
-        {/* Left Index Switcher Tabs */}
-        <div className="flex items-center gap-1.5 bg-[#0a1019] p-1 rounded-xl border border-[#182333] w-fit">
-          {INDEX_CHART_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSelectedIndex(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${selectedIndex === tab.id
-                  ? "bg-[#1d2738] text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
+        {showIndexTabs && setSelectedIndex ? (
+          /* Left Index Switcher Tabs */
+          <div className="flex items-center gap-1.5 bg-[#0a1019] p-1 rounded-xl border border-[#182333] w-fit">
+            {INDEX_CHART_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setSelectedIndex(tab.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  selectedIndex === tab.id
+                    ? "bg-[#1d2738] text-white shadow-sm"
+                    : "text-gray-400 hover:text-gray-200"
                 }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          /* Dedicated Chart Title & Subtitle */
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#141f2d] border border-[#203046] flex items-center justify-center text-sm shadow-inner">
+              📈
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-tight font-mono">
+                  {selectedIndex} Performance Chart
+                </h2>
+                {price != null && (
+                  <span className="text-xs font-mono font-semibold text-gray-300">
+                    ₹{price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+                {changePercent != null && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-bold ${
+                      isPositive
+                        ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/40"
+                        : "text-rose-400 bg-rose-950/60 border border-rose-800/40"
+                    }`}
+                  >
+                    {isPositive ? "+" : ""}
+                    {changePercent.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400 font-mono">
+                Interactive Price Trend Analysis · {selectedWindow}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Right Timeframe Pills */}
         <div className="flex items-center gap-1 bg-[#0a1019] p-1 rounded-xl border border-[#182333] w-fit self-end sm:self-auto">
@@ -134,10 +173,11 @@ const IndexChartCard = ({
               key={window}
               type="button"
               onClick={() => setSelectedWindow(window)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${selectedWindow === window
-                  ? "bg-[#1d2738] text-white font-semibold shadow-sm"
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                selectedWindow === window
+                  ? "bg-[#1d2738] text-white font-semibold shadow-sm border border-[#2b3c54]"
                   : "text-gray-400 hover:text-gray-200"
-                }`}
+              }`}
             >
               {window}
             </button>
@@ -159,54 +199,57 @@ const IndexChartCard = ({
         </div>
       ) : (
         <>
-          {/* Index Metrics Section */}
-          <div className="pt-6">
-            <div className="flex flex-wrap items-baseline gap-3">
-              {price != null && (
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-mono">
-                  {price.toLocaleString(CHART_MESSAGES.locale, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </h1>
-              )}
+          {/* Index Metrics Section (Only when showIndexTabs is enabled) */}
+          {showIndexTabs && (
+            <div className="pt-6">
+              <div className="flex flex-wrap items-baseline gap-3">
+                {price != null && (
+                  <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-mono">
+                    {price.toLocaleString(CHART_MESSAGES.locale, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </h1>
+                )}
 
-              {changePercent != null && (
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold font-mono border ${isPositive
-                      ? "bg-emerald-950/80 text-emerald-400 border-emerald-800/60"
-                      : "bg-rose-950/80 text-rose-400 border-rose-800/60"
+                {changePercent != null && (
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-bold font-mono border ${
+                      isPositive
+                        ? "bg-emerald-950/80 text-emerald-400 border-emerald-800/60"
+                        : "bg-rose-950/80 text-rose-400 border-rose-800/60"
                     }`}
-                >
-                  {isPositive ? "+" : ""}
-                  {changePercent.toFixed(2)}%
-                  {movementValue != null && (
-                    <span className="ml-1 opacity-80">
-                      ({movementValue >= 0 ? "+" : ""}
-                      {movementValue.toFixed(2)})
-                    </span>
-                  )}
-                </span>
-              )}
-
-              {date && <span className="text-xs text-gray-400">{date}</span>}
-            </div>
-
-            {/* Real Stats Grid from SerpApi knowledge_graph */}
-            {stats && (stats?.length ?? 0) > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-[#172233]">
-                {stats?.map?.((s) => (
-                  <div
-                    key={s?.label}
-                    className="px-2.5 py-1 rounded-lg bg-[#0a1019] border border-[#182333] flex items-center gap-1.5"
                   >
-                    <span className="text-[11px] text-gray-400">{s?.label}:</span>
-                    <span className="text-xs font-mono font-semibold text-white">{s?.value}</span>
-                  </div>
-                ))}
+                    {isPositive ? "+" : ""}
+                    {changePercent.toFixed(2)}%
+                    {movementValue != null && (
+                      <span className="ml-1 opacity-80">
+                        ({movementValue >= 0 ? "+" : ""}
+                        {movementValue.toFixed(2)})
+                      </span>
+                    )}
+                  </span>
+                )}
+
+                {date && <span className="text-xs text-gray-400">{date}</span>}
               </div>
-            )}
-          </div>
+
+              {/* Real Stats Grid from SerpApi knowledge_graph */}
+              {stats && (stats?.length ?? 0) > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-[#172233]">
+                  {stats?.map?.((s) => (
+                    <div
+                      key={s?.label}
+                      className="px-2.5 py-1 rounded-lg bg-[#0a1019] border border-[#182333] flex items-center gap-1.5"
+                    >
+                      <span className="text-[11px] text-gray-400">{s?.label}:</span>
+                      <span className="text-xs font-mono font-semibold text-white">{s?.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Chart Canvas / SVG Container */}
           {coords.length > 0 && (

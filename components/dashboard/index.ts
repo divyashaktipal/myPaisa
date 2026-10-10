@@ -18,4 +18,7 @@ export { default as TanStackStockChart } from "./TanStackStockChart";
 export { default as SignalsSection } from "./SignalsSection";
 export { default as SignalsPageContent } from "./SignalsPageContent";
 export { default as ChartTerminal } from "./ChartTerminal";
+export { default as TopMovers } from "./TopMovers";
+export { default as LiveFeedCard } from "./LiveFeedCard";
+export { default as LiveNewsFeedSection } from "./LiveNewsFeedSection";
 

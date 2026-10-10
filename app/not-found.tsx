@@ -3,7 +3,7 @@ import Link from "next/link";
 import { NOT_FOUND_CONFIG } from "@/constants/NotFound";
 import type { NotFoundProps } from "@/types/NotFound";
 
-const NotFound = (_props: NotFoundProps = {}) => {
+export default function NotFound() {
   return (
     <div className="min-h-screen bg-[#070b11] text-white flex flex-col items-center justify-center px-4 py-16 selection:bg-emerald-500 selection:text-black">
       <div className="relative max-w-lg w-full text-center">
@@ -46,6 +46,4 @@ const NotFound = (_props: NotFoundProps = {}) => {
       </div>
     </div>
   );
-};
-
-export default NotFound;
+}

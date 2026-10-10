@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   StatusBanner,
+  LiveFeedCard,
   IndexChartCard,
   MarketHeatmapSection,
   SignalsSection,
-  MarketSummaryAndMovers,
+  LiveNewsFeedSection,
   useDashboard,
 } from "@/components/dashboard";
 import type { FinanceApiResponse, DashboardErrorState } from "@/types/DashboardPage";
@@ -133,8 +134,8 @@ const LivePage = () => {
         />
       )}
 
-      {/* 1. Live Indices Section */}
-      <IndexChartCard
+      {/* 1. Unified Live Feed Card matching screenshot (Header, Chart in middle div, TOP MOVERS & Commentary in bottom) */}
+      <LiveFeedCard
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
         selectedWindow={selectedWindow}
@@ -147,9 +148,14 @@ const LivePage = () => {
         chartPoints={financeData?.chartPoints ?? []}
         stats={financeData?.stats ?? []}
         loading={loading}
+        watchlist={watchlist}
+        onToggleWatchlist={toggleWatchlist}
+        onSelectStock={(sym) => {
+          router.push(`/dashboard/chart?symbol=${encodeURIComponent(sym)}`);
+        }}
       />
 
-      {/* 2. Market Heatmap Section (Positioned just below Live Indices) */}
+      {/* 3. Market Heatmap Section (Positioned just below Live Indices) */}
       <MarketHeatmapSection
         onSelectStock={(stock) => {
           const targetSlug = stock.slug || stock.symbol.toLowerCase();
@@ -158,7 +164,7 @@ const LivePage = () => {
         selectedStockSymbol={selectedIndex}
       />
 
-      {/* 3. Signals Section (Dedicated 52-Week Low/High Signals Widget) */}
+      {/* 4. Signals Section (Dedicated 52-Week Low/High Signals Widget) */}
       <SignalsSection
         onSelectStock={(stock) => {
           const targetSlug = stock.slug || stock.symbol.toLowerCase();
@@ -166,20 +172,15 @@ const LivePage = () => {
         }}
       />
 
-      {/* 4. Live Market Summary, Real Top News & Market Movers */}
-      {financeData && (
-        <MarketSummaryAndMovers
-          indexName={selectedIndex}
-          about={financeData?.about}
-          news={financeData?.news}
-          related={financeData?.related}
-          watchlist={watchlist}
-          onToggleWatchlist={toggleWatchlist}
-          onSelectStock={(sym) => {
-            router.push(`/dashboard/chart?symbol=${encodeURIComponent(sym)}`);
-          }}
-        />
-      )}
+      {/* 5. Live News Feed Section (Dedicated section as other sections have, i.e. signals) */}
+      <LiveNewsFeedSection
+        indexName={selectedIndex}
+        about={financeData?.about}
+        news={financeData?.news}
+        onSelectStock={(sym) => {
+          router.push(`/dashboard/chart?symbol=${encodeURIComponent(sym)}`);
+        }}
+      />
     </div>
   );
 };

@@ -25,8 +25,10 @@ export async function GET() {
 
     return NextResponse.json({
       authenticated: true,
-      user: session.user,
-      mongoData: mongoUser,
+      user: {
+        name: session.user.name || "Member",
+        role: mongoUser?.role || "trader",
+      },
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error retrieving user profile";

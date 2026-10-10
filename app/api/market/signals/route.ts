@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import {
   INITIAL_ALL_SIGNALS,
   INITIAL_TOP_HIGHLIGHTS,
@@ -9,6 +10,14 @@ import type { SignalsApiResponse } from "@/types/Signals";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized: Sign in required to access market signals." },
+      { status: 401 }
+    );
+  }
+
   try {
     const response: SignalsApiResponse = {
       success: true,

@@ -153,12 +153,8 @@ const ChartContent = ({ symbolProp }: ChartContentProps) => {
             onClick={() => router.push("/dashboard/live")}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121c2c] hover:bg-[#1a283e] text-emerald-400 hover:text-emerald-300 border border-[#1e2f48] text-xs font-semibold transition cursor-pointer"
           >
-            <span>← Back to Live Heatmap</span>
+            <span>← Back</span>
           </button>
-          <span className="text-gray-600 text-xs hidden sm:inline">|</span>
-          <span className="text-xs text-gray-400 font-mono hidden sm:inline">
-            Inspecting <span className="text-white font-bold">{financeData?.title || selectedStock}</span> ({selectedStock.toLowerCase()})
-          </span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -167,22 +163,20 @@ const ChartContent = ({ symbolProp }: ChartContentProps) => {
             <button
               type="button"
               onClick={() => setChartEngine("tanstack")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                chartEngine === "tanstack"
-                  ? "bg-[#182638] text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${chartEngine === "tanstack"
+                ? "bg-[#182638] text-white shadow-sm"
+                : "text-gray-400 hover:text-gray-200"
+                }`}
             >
               TanStack Chart
             </button>
             <button
               type="button"
               onClick={() => setChartEngine("candlestick")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                chartEngine === "candlestick"
-                  ? "bg-[#182638] text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${chartEngine === "candlestick"
+                ? "bg-[#182638] text-white shadow-sm"
+                : "text-gray-400 hover:text-gray-200"
+                }`}
             >
               Candlestick
             </button>

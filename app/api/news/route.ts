@@ -8,6 +8,8 @@ import {
 } from "@/constants/MarketNews";
 import type { NewsStoryItem, MarketNewsResponse } from "@/types/MarketNews";
 
+import { auth } from "@/auth";
+
 export const dynamic = "force-dynamic";
 
 // Helper to deduce relevant stock tickers from headline
@@ -28,31 +30,17 @@ function extractTickers(text: string): string[] {
   return ["MARKET"];
 }
 
-// Generate contextual summary for real news
-function synthesizeSummary(headline: string, source: string): string {
-  const t = headline.toLowerCase();
-  if (t.includes("fda") || t.includes("nod") || t.includes("approval") || t.includes("drug")) {
-    return `Regulatory milestone: US health regulators granted key product clearance. This expands target addressable market penetration and reinforces specialized pipeline monetization for the fiscal year.`;
-  }
-  if (t.includes("h1b") || t.includes("green card") || t.includes("visa") || t.includes("perm")) {
-    return `Cross-border workforce advisory: Scrutiny on immigration frameworks prompted market evaluation. Analysts highlight that Indian technology majors have scaled domestic US onshore hiring to over 60%.`;
-  }
-  if (t.includes("stake") || t.includes("buys") || t.includes("sells") || t.includes("fii") || t.includes("dii")) {
-    return `Institutional capital flows: Large domestic mutual funds and global funds rebalanced holdings. Market participants are monitoring float liquidity and price stability.`;
-  }
-  if (t.includes("fall") || t.includes("drop") || t.includes("slump") || t.includes("plunge") || t.includes("down")) {
-    return `Market consolidation: The counter faced intraday selling pressure alongside broader benchmark index volatility. Key multi-week moving average support bands are being assessed.`;
-  }
-  if (t.includes("surge") || t.includes("jump") || t.includes("rally") || t.includes("rise") || t.includes("high")) {
-    return `Bullish price momentum: Heavy institutional volumes propelled the counter higher, supported by positive sector tailwinds and strong quarterly delivery numbers.`;
-  }
-  if (t.includes("earnings") || t.includes("profit") || t.includes("results") || t.includes("q2") || t.includes("q1")) {
-    return `Financial disclosure: Operating revenues, margin expansion, and forward management guidance reflect ongoing execution across high-margin business verticals.`;
-  }
-  return `Real-time market wire reported by ${source}: Corporate developments, institutional activity, and regulatory disclosures affecting frontline Indian equities.`;
-}
+import { batchGenerateGeminiSummaries } from "@/lib";
 
 export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized: Sign in required to access market news feed." },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category") || "top_stories";
   const query = searchParams.get("query")?.trim() || "";
@@ -75,11 +63,20 @@ export async function GET(req: Request) {
     const rawNews = liveData?.news_results || [];
 
     if (rawNews.length > 0) {
+      // Summarize news stories using Gemini API endpoint from env
+      const itemsToSummarize = rawNews.map((item) => ({
+        title: item.title || item.snippet || "Market update",
+        source: item.source || "Financial Wire",
+        snippet: item.snippet || "",
+      }));
+
+      const geminiSummaries = await batchGenerateGeminiSummaries(itemsToSummarize);
+
       const liveStories: NewsStoryItem[] = rawNews.map((item, idx) => {
         const title = item.title || item.snippet || "Market update";
         const source = item.source || "Financial Wire";
         const tickers = query ? [query.toUpperCase()] : extractTickers(title);
-        const summary = synthesizeSummary(title, source);
+        const summary = geminiSummaries[idx] || item.snippet || title;
 
         return {
           id: `live-${idx}-${Date.now()}`,

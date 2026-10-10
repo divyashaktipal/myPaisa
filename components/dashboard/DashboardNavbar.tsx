@@ -39,10 +39,9 @@ const DashboardNavbar = ({
             ? "watchlist"
             : "live");
 
-  // Initial for user avatar
+  // Initial for user avatar (derives only from user name, never exposes email)
   const userInitial =
     user?.name?.charAt?.(0)?.toUpperCase?.() ||
-    user?.email?.charAt?.(0)?.toUpperCase?.() ||
     USER_PROFILE_CONFIG.defaultInitial;
 
   return (
@@ -128,7 +127,10 @@ const DashboardNavbar = ({
               <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#111927] border border-[#223147] p-2 text-xs text-white shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-3 py-2 border-b border-[#1e2a3c] mb-1">
                   <p className="font-semibold truncate text-white">{user?.name || USER_PROFILE_CONFIG.defaultName}</p>
-                  <p className="text-[11px] text-gray-400 truncate">{user?.email || USER_PROFILE_CONFIG.defaultEmail}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span className="text-[11px] text-gray-400 font-medium">{USER_PROFILE_CONFIG.accountStatus}</span>
+                  </div>
                 </div>
                 <Link
                   href="/dashboard/watchlist"

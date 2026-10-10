@@ -7,7 +7,7 @@ export const SIGNALS_PAGE_CONFIG = {
   widgetTitle: "Signals",
   widgetCountSuffix: "now",
   showAllText: "Show all 60",
-  backToLiveText: "← Back to Live Dashboard",
+  backToLiveText: "← Back",
   allSignalsSectionTitle: "ALL SIGNALS",
 };
 

@@ -5,6 +5,7 @@ export interface FooterLink {
 
 export interface FooterContent {
   copyright: string;
+  disclaimer: string;
   links: FooterLink[];
 }
 

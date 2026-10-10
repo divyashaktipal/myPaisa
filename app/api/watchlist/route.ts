@@ -8,9 +8,16 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const session = await auth();
-    const userId = session?.user?.email || "guest_user";
-    const symbols = await getWatchlist(userId);
-    return NextResponse.json({ success: true, symbols, userId });
+    if (!session?.user?.email) {
+      return createErrorResponse(
+        HTTP_STATUS.UNAUTHORIZED,
+        "Authentication required: Sign in to access your watchlist."
+      );
+    }
+
+    const symbols = await getWatchlist(session.user.email);
+    // Strictly omit personal email/userId from client JSON payload
+    return NextResponse.json({ success: true, symbols });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to fetch watchlist";
     console.error("Watchlist GET error:", message);
@@ -24,7 +31,12 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await auth();
-    const userId = session?.user?.email || "guest_user";
+    if (!session?.user?.email) {
+      return createErrorResponse(
+        HTTP_STATUS.UNAUTHORIZED,
+        "Authentication required: Sign in to update your watchlist."
+      );
+    }
 
     let body: { symbol?: unknown };
     try {
@@ -51,7 +63,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await toggleWatchlist(cleanSymbol, userId);
+    const result = await toggleWatchlist(cleanSymbol, session.user.email);
     return NextResponse.json({
       success: true,
       ...result,

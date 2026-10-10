@@ -1,5 +1,8 @@
 export interface EnvConfig {
   readonly SERPAPI_KEY: string;
+  readonly GEMINI_API_KEY: string;
+  readonly GEMINI_API_ENDPOINT: string;
+  readonly GEMINI_MODEL: string;
   readonly MONGODB_URI: string;
   readonly AUTH_SECRET: string;
   readonly NEXTAUTH_SECRET: string;

@@ -15,6 +15,8 @@ import {
   TanStackStockChart,
   SignalsSection,
   SignalsPageContent,
+  LiveFeedCard,
+  LiveNewsFeedSection,
 } from "@/components/dashboard";
 import type { StockItem } from "@/types/top200Stocks";
 import type { HeatmapStock } from "@/types/MarketHeatmap";
@@ -450,7 +452,7 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
         ) : (
           /* Live View: Live Indices Section followed by Market Heatmap Section */
           <div className="space-y-6">
-            <IndexChartCard
+            <LiveFeedCard
               selectedIndex={selectedIndex}
               setSelectedIndex={setSelectedIndex}
               selectedWindow={selectedWindow}
@@ -463,6 +465,9 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
               chartPoints={financeData?.chartPoints ?? []}
               stats={financeData?.stats ?? []}
               loading={loading}
+              watchlist={watchlist}
+              onToggleWatchlist={handleToggleWatchlist}
+              onSelectStock={handleSelectStock}
             />
 
             <MarketHeatmapSection
@@ -476,17 +481,12 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
               }}
             />
 
-            {financeData && (
-              <MarketSummaryAndMovers
-                indexName={selectedIndex}
-                about={financeData?.about}
-                news={financeData?.news}
-                related={financeData?.related}
-                watchlist={watchlist}
-                onToggleWatchlist={handleToggleWatchlist}
-                onSelectStock={handleSelectStock}
-              />
-            )}
+            <LiveNewsFeedSection
+              indexName={selectedIndex}
+              about={financeData?.about}
+              news={financeData?.news}
+              onSelectStock={handleSelectStock}
+            />
           </div>
         )}
       </main>

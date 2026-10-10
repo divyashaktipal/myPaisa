@@ -2,15 +2,10 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { DASHBOARD_ROUTE_PAGE_CONFIG } from "@/constants/DashboardRoutePage";
 
-export default async function TopLevelChartRedirect({
-  params,
-}: {
-  params: Promise<{ symbol: string }>;
-}) {
+export default async function NewsRoute() {
   const session = await auth();
   if (!session?.user) {
     redirect(DASHBOARD_ROUTE_PAGE_CONFIG.unauthenticatedRedirect);
   }
-  const { symbol } = await params;
-  redirect(`/dashboard/chart/${encodeURIComponent(symbol)}`);
+  redirect("/dashboard/news");
 }

@@ -96,9 +96,9 @@ const MarketNewsFeed = () => {
     <div className="w-full max-w-5xl mx-auto space-y-8 pb-12 text-white font-sans">
       {/* 1. Header Banner */}
       <div className="space-y-2 pt-2">
-        <p className="text-[11px] font-mono tracking-widest text-gray-400 font-semibold uppercase">
+        {/* <p className="text-[11px] font-mono tracking-widest text-gray-400 font-semibold uppercase">
           {currentDateLabel}
-        </p>
+        </p> */}
 
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white flex items-baseline gap-1.5 flex-wrap">
           <span>{MARKET_NEWS_HEADER.titlePrefix}</span>
@@ -121,11 +121,10 @@ const MarketNewsFeed = () => {
           <button
             type="button"
             onClick={() => setIsSearchOpen((prev) => !prev)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 border ${
-              isSearchOpen || searchQuery
-                ? "bg-emerald-500 text-black border-emerald-400 font-bold"
-                : "bg-[#0e1624] text-gray-300 border-[#1c293c] hover:border-[#2d405b] hover:text-white"
-            }`}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 border ${isSearchOpen || searchQuery
+              ? "bg-emerald-500 text-black border-emerald-400 font-bold"
+              : "bg-[#0e1624] text-gray-300 border-[#1c293c] hover:border-[#2d405b] hover:text-white"
+              }`}
           >
             <span>🔍</span>
             <span>{MARKET_NEWS_HEADER.stockFilterButton}</span>
@@ -142,11 +141,10 @@ const MarketNewsFeed = () => {
                   setActiveTab(tab.id as NewsFilterTab);
                   if (searchQuery) setSearchQuery("");
                 }}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer border ${
-                  isActive
-                    ? "bg-white text-black border-white shadow-sm font-bold"
-                    : "bg-[#0e1624] text-gray-300 border-[#1c293c] hover:border-[#2d405b] hover:text-white"
-                }`}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer border ${isActive
+                  ? "bg-white text-black border-white shadow-sm font-bold"
+                  : "bg-[#0e1624] text-gray-300 border-[#1c293c] hover:border-[#2d405b] hover:text-white"
+                  }`}
               >
                 {tab.label}
               </button>
@@ -238,11 +236,10 @@ const MarketNewsFeed = () => {
               <button
                 type="button"
                 onClick={(e) => toggleBookmark(leadStory.id, e)}
-                className={`p-2 rounded-xl transition cursor-pointer text-sm ${
-                  bookmarkedIds.has(leadStory.id)
-                    ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/60"
-                    : "text-gray-400 hover:text-white bg-[#101825] border border-[#1d293b]"
-                }`}
+                className={`p-2 rounded-xl transition cursor-pointer text-sm ${bookmarkedIds.has(leadStory.id)
+                  ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/60"
+                  : "text-gray-400 hover:text-white bg-[#101825] border border-[#1d293b]"
+                  }`}
                 title={bookmarkedIds.has(leadStory.id) ? "Bookmarked" : "Bookmark story"}
               >
                 {bookmarkedIds.has(leadStory.id) ? "★" : "☆"}
@@ -307,11 +304,10 @@ const MarketNewsFeed = () => {
                   <button
                     type="button"
                     onClick={(e) => toggleBookmark(short.id, e)}
-                    className={`p-1.5 rounded-lg text-xs transition cursor-pointer backdrop-blur-md ${
-                      isBookmarked
-                        ? "text-emerald-400 bg-black/80"
-                        : "text-gray-300 hover:text-white bg-black/50"
-                    }`}
+                    className={`p-1.5 rounded-lg text-xs transition cursor-pointer backdrop-blur-md ${isBookmarked
+                      ? "text-emerald-400 bg-black/80"
+                      : "text-gray-300 hover:text-white bg-black/50"
+                      }`}
                   >
                     {isBookmarked ? "★" : "☆"}
                   </button>
@@ -385,11 +381,10 @@ const MarketNewsFeed = () => {
                       <button
                         type="button"
                         onClick={(e) => toggleBookmark(story.id, e)}
-                        className={`p-1.5 rounded-lg text-xs transition cursor-pointer shrink-0 ${
-                          isBookmarked
-                            ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/60"
-                            : "text-gray-500 hover:text-gray-300"
-                        }`}
+                        className={`p-1.5 rounded-lg text-xs transition cursor-pointer shrink-0 ${isBookmarked
+                          ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800/60"
+                          : "text-gray-500 hover:text-gray-300"
+                          }`}
                         title={isBookmarked ? "Bookmarked" : "Bookmark"}
                       >
                         {isBookmarked ? "★" : "☆"}

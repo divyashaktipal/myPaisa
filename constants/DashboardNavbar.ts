@@ -33,8 +33,8 @@ export const MARKET_STATUS_BADGE: MarketStatusBadgeConfig = {
 
 export const USER_PROFILE_CONFIG: UserProfileConfig = {
   defaultName: "Trader",
-  defaultEmail: "user@mypaisa.com",
-  defaultInitial: "S",
+  accountStatus: "Verified Member",
+  defaultInitial: "T",
   watchlistText: "My Watchlist",
   signOutText: "Sign out",
   signOutCallbackUrl: "/",

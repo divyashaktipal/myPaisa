@@ -4,7 +4,9 @@ import {
   normalizeGoogleFinanceSymbol,
   type SerpApiFinanceResponse,
   createErrorResponse,
+  batchGenerateGeminiSummaries,
 } from "@/lib";
+import { auth } from "@/auth";
 import { HTTP_STATUS } from "@/constants";
 import { env } from "@/config";
 
@@ -13,6 +15,14 @@ export const dynamic = "force-dynamic";
 const VALID_WINDOWS = new Set(["1D", "5D", "1M", "6M", "YTD", "1Y", "5Y", "MAX"]);
 
 export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return createErrorResponse(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Unauthorized: Authentication is required to access financial data."
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const rawSymbol = searchParams.get("symbol") || "NIFTY 50";
   const window = searchParams.get("window") || "1D";
@@ -95,7 +105,24 @@ export async function GET(req: Request) {
     const aboutLink = aboutFirst?.description?.link || null;
     const aboutLinkText = aboutFirst?.description?.link_text || null;
     const aboutInfo = aboutFirst?.info || [];
-    const news = serpData?.news_results || [];
+    const rawNews = serpData?.news_results || [];
+    let enrichedNews = rawNews;
+    if (rawNews.length > 0) {
+      try {
+        const itemsToSummarize = rawNews.slice(0, 8).map((item) => ({
+          title: item?.title || item?.snippet || "",
+          source: item?.source || "Google Finance",
+          snippet: item?.snippet || "",
+        }));
+        const geminiSummaries = await batchGenerateGeminiSummaries(itemsToSummarize);
+        enrichedNews = rawNews.map((item, idx) => ({
+          ...item,
+          summary: geminiSummaries[idx] || item?.snippet || item?.title,
+        }));
+      } catch (sumErr) {
+        console.warn("Gemini summarization notice in finance route:", sumErr);
+      }
+    }
     const related = serpData?.discover_more?.[0]?.items || [];
 
     const aboutDetails = {
@@ -126,7 +153,7 @@ export async function GET(req: Request) {
       stats,
       about: aboutSnippet,
       aboutDetails,
-      news,
+      news: enrichedNews,
       related,
     });
   } catch (err: unknown) {
