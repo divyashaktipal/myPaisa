@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   StatusBanner,
   IndexChartCard,
+  MarketHeatmapSection,
   MarketSummaryAndMovers,
   useDashboard,
 } from "@/components/dashboard";
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
 const LivePage = () => {
   const router = useRouter();
   const { watchlist, toggleWatchlist } = useDashboard();
+  const [liveView, setLiveView] = useState<"heatmap" | "indices">("heatmap");
   const [selectedIndex, setSelectedIndex] = useState<string>(DEFAULT_DASHBOARD_STATE.selectedIndex);
   const [selectedWindow, setSelectedWindow] = useState<string>(DEFAULT_DASHBOARD_STATE.selectedWindow);
   const [dismissedErrorKey, setDismissedErrorKey] = useState<string | null>(null);
@@ -125,29 +127,74 @@ const LivePage = () => {
         </div>
       )}
 
-      {/* Real Live Timestamp Banner */}
-      {financeData?.date && (
-        <StatusBanner
-          statusText={`${STATUS_BANNER_LABELS.liveFeedPrefix}${financeData?.title || selectedIndex}`}
-          timestamp={`${STATUS_BANNER_LABELS.dataAsOfPrefix}${financeData?.date}`}
+      {/* Top Header Bar: Mode Switcher & Real Live Timestamp Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#080d16] border border-[#152236] rounded-2xl p-3 px-4 shadow-lg">
+        {/* View Mode Toggle: Market Heatmap vs Live Indices */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-mono uppercase text-gray-400 font-semibold tracking-wider">
+            Live Mode:
+          </span>
+          <div className="flex items-center gap-1 bg-[#05080e] p-1 rounded-xl border border-[#141e2e]">
+            <button
+              type="button"
+              onClick={() => setLiveView("heatmap")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                liveView === "heatmap"
+                  ? "bg-[#182638] text-emerald-400 shadow-sm border border-[#23354d]"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              <span>🗺️</span>
+              <span>Market Heatmap</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLiveView("indices")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                liveView === "indices"
+                  ? "bg-[#182638] text-emerald-400 shadow-sm border border-[#23354d]"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              <span>📈</span>
+              <span>Live Indices</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Real Live Timestamp Pill */}
+        {financeData?.date && (
+          <StatusBanner
+            statusText={`${STATUS_BANNER_LABELS.liveFeedPrefix}${financeData?.title || selectedIndex}`}
+            timestamp={`${STATUS_BANNER_LABELS.dataAsOfPrefix}${financeData?.date}`}
+          />
+        )}
+      </div>
+
+      {/* Primary Display: Heatmap or Indices Terminal */}
+      {liveView === "heatmap" ? (
+        <MarketHeatmapSection
+          onSelectStock={(stock) => {
+            router.push(`/dashboard/chart?symbol=${encodeURIComponent(stock.symbol)}`);
+          }}
+          selectedStockSymbol={selectedIndex}
+        />
+      ) : (
+        <IndexChartCard
+          selectedIndex={selectedIndex}
+          setSelectedIndex={setSelectedIndex}
+          selectedWindow={selectedWindow}
+          setSelectedWindow={setSelectedWindow}
+          price={financeData?.price ?? null}
+          changePercent={financeData?.changePercent ?? null}
+          movement={financeData?.movement ?? null}
+          movementValue={financeData?.movementValue ?? null}
+          date={financeData?.date ?? null}
+          chartPoints={financeData?.chartPoints ?? []}
+          stats={financeData?.stats ?? []}
+          loading={loading}
         />
       )}
-
-      {/* Live Indices Terminal: Show Nifty 50, 100, 200 Index Tabs & Area Chart */}
-      <IndexChartCard
-        selectedIndex={selectedIndex}
-        setSelectedIndex={setSelectedIndex}
-        selectedWindow={selectedWindow}
-        setSelectedWindow={setSelectedWindow}
-        price={financeData?.price ?? null}
-        changePercent={financeData?.changePercent ?? null}
-        movement={financeData?.movement ?? null}
-        movementValue={financeData?.movementValue ?? null}
-        date={financeData?.date ?? null}
-        chartPoints={financeData?.chartPoints ?? []}
-        stats={financeData?.stats ?? []}
-        loading={loading}
-      />
 
       {/* Live Market Summary, Real Top News & Market Movers */}
       {financeData && (

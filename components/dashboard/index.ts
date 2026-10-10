@@ -13,3 +13,6 @@ export { DashboardContext, useDashboard } from "./DashboardContext";
 export { default as UnderDevelopmentSection } from "./UnderDevelopmentSection";
 export { default as StockNewsSection } from "./StockNewsSection";
 export { default as MarketNewsFeed } from "./MarketNewsFeed";
+export { default as MarketHeatmapSection } from "./MarketHeatmapSection";
+export { default as TanStackStockChart } from "./TanStackStockChart";
+

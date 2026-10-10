@@ -13,10 +13,16 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
-  // Require authentication to access the dashboard routes
-  if (!session?.user) {
+  // In production, require Google authentication to access the dashboard routes
+  if (!session?.user && process.env.NODE_ENV !== "development") {
     redirect(DASHBOARD_ROUTE_PAGE_CONFIG.unauthenticatedRedirect);
   }
 
-  return <DashboardShell user={session.user}>{children}</DashboardShell>;
+  const user = session?.user || {
+    name: "Trader",
+    email: "trader@mypaisa.com",
+    image: null,
+  };
+
+  return <DashboardShell user={user}>{children}</DashboardShell>;
 }

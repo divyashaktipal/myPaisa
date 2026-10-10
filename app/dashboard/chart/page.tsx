@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   StatusBanner,
   CandlestickChart,
+  TanStackStockChart,
   CompanyDetailsCard,
   StockNewsSection,
   useDashboard,
@@ -26,14 +27,15 @@ export const dynamic = "force-dynamic";
 const ChartContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { watchlist, toggleWatchlist } = useDashboard();
+  const { watchlist, toggleWatchlist, openSearch } = useDashboard();
 
-  // If URL has ?symbol=XYZ use it; otherwise default to HDFC stock (HDFCBANK)
-  const querySymbol = searchParams.get("symbol");
+  // If URL has ?symbol=XYZ or ?stock=slug use it; otherwise default to HDFC stock (HDFCBANK)
+  const querySymbol = searchParams.get("symbol") || searchParams.get("stock");
   const initialStock = querySymbol?.trim() ? querySymbol.trim().toUpperCase() : DEFAULT_CHART_STOCK_SYMBOL;
 
   const [selectedStock, setSelectedStock] = useState<string>(initialStock);
   const [selectedWindow, setSelectedWindow] = useState<string>("1D");
+  const [chartEngine, setChartEngine] = useState<"tanstack" | "candlestick">("tanstack");
   const [dismissedErrorKey, setDismissedErrorKey] = useState<string | null>(null);
 
   // Sync if query param changes
@@ -145,6 +147,59 @@ const ChartContent = () => {
         </div>
       )}
 
+      {/* Top Return to Live Heatmap Toolbar & Engine Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#080d16] border border-[#152236] rounded-2xl p-3 px-4 shadow-lg">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/live")}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121c2c] hover:bg-[#1a283e] text-emerald-400 hover:text-emerald-300 border border-[#1e2f48] text-xs font-semibold transition cursor-pointer"
+          >
+            <span>← Back to Live Heatmap</span>
+          </button>
+          <span className="text-gray-600 text-xs hidden sm:inline">|</span>
+          <span className="text-xs text-gray-400 font-mono hidden sm:inline">
+            Inspecting <span className="text-white font-bold">{financeData?.title || selectedStock}</span> ({selectedStock.toLowerCase()})
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Chart Engine Selector */}
+          <div className="flex items-center gap-1 bg-[#05080e] p-1 rounded-xl border border-[#141e2e]">
+            <button
+              type="button"
+              onClick={() => setChartEngine("tanstack")}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                chartEngine === "tanstack"
+                  ? "bg-[#182638] text-white shadow-sm"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              TanStack Chart
+            </button>
+            <button
+              type="button"
+              onClick={() => setChartEngine("candlestick")}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                chartEngine === "candlestick"
+                  ? "bg-[#182638] text-white shadow-sm"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Candlestick
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={openSearch}
+            className="px-3 py-1.5 rounded-xl bg-[#0e1624] hover:bg-[#141f30] text-gray-300 text-xs border border-[#1b273a] transition cursor-pointer"
+          >
+            Search (⌘K)
+          </button>
+        </div>
+      </div>
+
       {/* Real Live Timestamp Banner */}
       {financeData?.date && (
         <StatusBanner
@@ -153,25 +208,43 @@ const ChartContent = () => {
         />
       )}
 
-      {/* Stock Candlestick Chart (Left) + Company Basic Details (Right) */}
+      {/* Stock Chart (Left) + Company Basic Details (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Candlestick Chart with Minimal Filters */}
+        {/* Left Column: Interactive Stock Chart */}
         <div className="lg:col-span-8">
-          <CandlestickChart
-            symbol={financeData?.symbol || selectedStock}
-            title={financeData?.title || financeData?.aboutDetails?.title}
-            exchange={financeData?.exchange}
-            price={financeData?.price ?? null}
-            changePercent={financeData?.changePercent ?? null}
-            movement={financeData?.movement ?? null}
-            movementValue={financeData?.movementValue ?? null}
-            date={financeData?.date ?? null}
-            chartPoints={financeData?.chartPoints ?? []}
-            selectedWindow={selectedWindow}
-            setSelectedWindow={setSelectedWindow}
-            loading={loading}
-            onBackToIndices={() => router.push("/dashboard/live")}
-          />
+          {chartEngine === "tanstack" ? (
+            <TanStackStockChart
+              stock={{
+                symbol: financeData?.symbol || selectedStock,
+                name: financeData?.title || financeData?.aboutDetails?.title || selectedStock,
+                slug: (financeData?.symbol || selectedStock).toLowerCase(),
+                price: financeData?.price ?? 0,
+                change: financeData?.movementValue ?? 0,
+                changePercent: financeData?.changePercent ?? 0,
+                turnoverCr: Math.round(((financeData?.price ?? 0) * 2000000) / 10000000),
+                volume: 2000000,
+                sector: financeData?.aboutDetails?.exchange || "NSE",
+              }}
+              selectedWindow={selectedWindow}
+              onSelectWindow={setSelectedWindow}
+            />
+          ) : (
+            <CandlestickChart
+              symbol={financeData?.symbol || selectedStock}
+              title={financeData?.title || financeData?.aboutDetails?.title}
+              exchange={financeData?.exchange}
+              price={financeData?.price ?? null}
+              changePercent={financeData?.changePercent ?? null}
+              movement={financeData?.movement ?? null}
+              movementValue={financeData?.movementValue ?? null}
+              date={financeData?.date ?? null}
+              chartPoints={financeData?.chartPoints ?? []}
+              selectedWindow={selectedWindow}
+              setSelectedWindow={setSelectedWindow}
+              loading={loading}
+              onBackToIndices={() => router.push("/dashboard/live")}
+            />
+          )}
         </div>
 
         {/* Right Column: Company Basic Details from SerpApi Knowledge Graph */}

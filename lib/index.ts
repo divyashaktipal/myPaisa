@@ -4,3 +4,4 @@ export * from "./legalData";
 export * from "./mongodb";
 export * from "./serpapi";
 export * from "./top200Stocks";
+export * from "./treemapLayout";

@@ -36,3 +36,5 @@ export * from "./QueryProvider";
 export * from "./UnderDevelopmentSection";
 export * from "./StockNewsSection";
 export * from "./MarketNews";
+export * from "./MarketHeatmap";
+
