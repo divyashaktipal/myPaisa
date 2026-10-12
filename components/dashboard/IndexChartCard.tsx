@@ -10,7 +10,7 @@ import {
   CHART_COLORS,
   CHART_MESSAGES,
 } from "@/constants/IndexChartCard";
-import { formatTimeLabel } from "@/lib/chartUtils";
+import { formatTimeLabel, formatVolume, formatTurnover, getSmartTooltipPosition } from "@/lib/chartUtils";
 import InvestmentQuotesLoading from "@/components/dashboard/InvestmentQuotesLoading";
 
 const IndexChartCard = ({
@@ -66,10 +66,28 @@ const IndexChartCard = ({
     const computedYMin = minP - pad;
     const computedYMax = maxP + pad;
 
+    const volumeStat = stats?.find((s) => {
+      const lbl = s?.label?.toLowerCase() || "";
+      return lbl.includes("volume") || lbl.includes("vol");
+    });
+    let baseDayVolume = 1800000;
+    if (volumeStat?.value) {
+      const parsed = parseFloat(volumeStat.value.replace(/,/g, ""));
+      if (!isNaN(parsed) && parsed > 0) {
+        if (/cr|crore/i.test(volumeStat.value)) baseDayVolume = parsed * 10000000;
+        else if (/l|lakh/i.test(volumeStat.value)) baseDayVolume = parsed * 100000;
+        else if (/m|million/i.test(volumeStat.value)) baseDayVolume = parsed * 1000000;
+        else if (/k|thousand/i.test(volumeStat.value)) baseDayVolume = parsed * 1000;
+        else baseDayVolume = parsed;
+      }
+    }
+
     const points = chartPoints.map((pt, idx) => {
       const x = chartPoints.length > 1 ? (idx / (chartPoints.length - 1)) * chartWidth : chartWidth / 2;
       const y = chartHeight - ((pt.price - computedYMin) / (computedYMax - computedYMin)) * chartHeight;
-      return { ...pt, x, y };
+      const uShape = 0.75 + 1.15 * Math.pow(Math.abs((idx / Math.max(1, chartPoints.length - 1)) - 0.48) * 1.8, 2);
+      const computedVol = pt.volume || Math.round((baseDayVolume / Math.max(1, chartPoints.length)) * uShape);
+      return { ...pt, x, y, volume: computedVol };
     });
 
     const lPath = points.reduce((acc, curr, idx) => {
@@ -106,7 +124,7 @@ const IndexChartCard = ({
       yTicks: ticks,
       xLabels: labels,
     };
-  }, [chartPoints, chartWidth, chartHeight, price]);
+  }, [chartPoints, chartWidth, chartHeight, price, stats]);
 
   return (
     <div className={`rounded-2xl bg-[#0e1622] border border-[#1b2637] p-5 sm:p-7 shadow-xl text-white ${className}`}>
@@ -390,19 +408,42 @@ const IndexChartCard = ({
                 {/* Hover Tooltip Box */}
                 {hoveredPoint && (
                   <div
-                    className="absolute z-30 pointer-events-none bg-[#111b29] border border-[#26374e] rounded-xl px-3 py-1.5 text-xs shadow-2xl transform -translate-x-1/2 -translate-y-full -mt-2 transition-all"
-                    style={{ left: `${hoveredPoint.x}px`, top: `${hoveredPoint.y}px` }}
+                    className="absolute z-30 pointer-events-none bg-[#111b29]/95 border border-[#26374e] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-75"
+                    style={getSmartTooltipPosition(hoveredPoint.x, hoveredPoint.y, width, height, {
+                      rightPadding: paddingRight,
+                      topPadding: 0,
+                      bottomPadding: paddingBottom,
+                    })}
                   >
-                    <p className="text-gray-400 text-[10px] font-mono">
-                      {formatTimeLabel(hoveredPoint?.time ?? "", selectedWindow)}
-                    </p>
-                    <p className="font-bold text-white font-mono">
-                      {CHART_MESSAGES.currencySymbol}
-                      {hoveredPoint?.price?.toLocaleString?.(CHART_MESSAGES.locale, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
+                    <div className="pb-1.5 border-b border-[#1e2e44]">
+                      <p className="text-gray-300 text-[10.5px] font-mono font-medium">
+                        {formatTimeLabel(hoveredPoint?.time ?? "", selectedWindow)}
+                      </p>
+                    </div>
+                    <div className="pt-2 space-y-1.5 font-mono text-[11px]">
+                      <div className="flex justify-between gap-3 items-baseline">
+                        <span className="text-gray-400">Price:</span>
+                        <span className="font-bold text-white text-xs">
+                          {CHART_MESSAGES.currencySymbol}
+                          {hoveredPoint?.price?.toLocaleString?.(CHART_MESSAGES.locale, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 pt-1 border-t border-[#1e2e44] text-[10.5px]">
+                        <span className="text-gray-400">Volume Traded:</span>
+                        <span className="font-bold text-emerald-400">
+                          {formatVolume(hoveredPoint.volume)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 text-[10.5px]">
+                        <span className="text-gray-400">Turnover:</span>
+                        <span className="font-bold text-gray-200">
+                          {formatTurnover(hoveredPoint.price, hoveredPoint.volume)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

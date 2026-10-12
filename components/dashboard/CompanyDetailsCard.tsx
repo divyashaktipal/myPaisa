@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import type { CompanyDetailsCardProps } from "@/types/CompanyDetailsCard";
 import { COMPANY_DETAILS_LABELS } from "@/constants/CompanyDetailsCard";
+import BookmarkIcon from "@/components/icons/BookmarkIcon";
 
 const CompanyDetailsCard = ({
   symbol,
@@ -40,6 +41,7 @@ const CompanyDetailsCard = ({
 
   // Filter out any empty stats
   const validStats = (stats || []).filter((s) => s?.label && s?.value);
+  const showSkeleton = Boolean(loading && !aboutSnippet && validStats.length === 0);
 
   return (
     <div className="rounded-2xl bg-[#0b121c] border border-[#1a2535] p-5 shadow-2xl text-white flex flex-col h-full">
@@ -68,16 +70,17 @@ const CompanyDetailsCard = ({
             onClick={() => onToggleWatchlist(symbol)}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border shadow-sm flex items-center gap-1.5 whitespace-nowrap ${
               isInWatchlist
-                ? "bg-emerald-950/80 border-emerald-700/80 text-emerald-300 hover:bg-emerald-900/90"
+                ? "bg-amber-950/60 border-amber-700/60 text-amber-300 hover:bg-amber-900/80"
                 : "bg-[#111c2b] border-[#1e2f44] text-gray-300 hover:text-white hover:bg-[#162438]"
             }`}
           >
-            {isInWatchlist ? COMPANY_DETAILS_LABELS.inWatchlist : COMPANY_DETAILS_LABELS.addToWatchlist}
+            <BookmarkIcon filled={isInWatchlist} className={`w-3.5 h-3.5 ${isInWatchlist ? "text-amber-400" : "text-gray-400"}`} />
+            <span>{isInWatchlist ? COMPANY_DETAILS_LABELS.inWatchlist : COMPANY_DETAILS_LABELS.addToWatchlist}</span>
           </button>
         )}
       </div>
 
-      {loading ? (
+      {showSkeleton ? (
         <div className="py-12 space-y-4 animate-pulse flex-1">
           <div className="h-4 bg-[#141f2e] rounded-md w-3/4" />
           <div className="h-16 bg-[#141f2e] rounded-xl w-full" />

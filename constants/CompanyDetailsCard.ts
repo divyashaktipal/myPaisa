@@ -9,8 +9,8 @@ export const COMPANY_DETAILS_LABELS: CompanyDetailsLabels = {
   readMore: "Source & Filing ↗",
   viewMore: "View more",
   viewLess: "View less",
-  addToWatchlist: "+ Add to Watchlist",
-  inWatchlist: "★ In Watchlist",
+  addToWatchlist: "Add to Watchlist",
+  inWatchlist: "In Watchlist",
   website: "Official Website ↗",
   exchange: "Primary Exchange",
 };

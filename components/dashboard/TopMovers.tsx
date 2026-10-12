@@ -10,6 +10,7 @@ import {
   WATCHLIST_INTERACTION,
 } from "@/constants/MarketSummaryAndMovers";
 import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
+import BookmarkIcon from "@/components/icons/BookmarkIcon";
 
 const TopMovers: React.FC<TopMoversProps> = ({
   indexName = MARKET_SUMMARY_DEFAULTS.defaultIndexName,
@@ -132,8 +133,8 @@ const TopMovers: React.FC<TopMoversProps> = ({
                       e.stopPropagation();
                       onToggleWatchlist?.(stock.symbol);
                     }}
-                    className={`text-sm transition cursor-pointer ${
-                      isWatchlisted ? "text-amber-400" : "text-gray-600 hover:text-gray-400"
+                    className={`p-1 rounded-lg transition cursor-pointer ${
+                      isWatchlisted ? "text-amber-400 hover:text-amber-300" : "text-gray-600 hover:text-gray-400"
                     }`}
                     title={
                       isWatchlisted
@@ -141,9 +142,10 @@ const TopMovers: React.FC<TopMoversProps> = ({
                         : WATCHLIST_INTERACTION.addToWatchlistTooltip
                     }
                   >
-                    {isWatchlisted
-                      ? WATCHLIST_INTERACTION.activeStar
-                      : WATCHLIST_INTERACTION.inactiveStar}
+                    <BookmarkIcon
+                      filled={isWatchlisted}
+                      className={`w-3.5 h-3.5 ${isWatchlisted ? "text-amber-400" : "text-gray-500 hover:text-gray-300"}`}
+                    />
                   </button>
                 )}
                 <span className="font-bold text-xs sm:text-sm text-white tracking-tight font-mono group-hover:text-emerald-400 transition">

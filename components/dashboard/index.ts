@@ -21,4 +21,5 @@ export { default as ChartTerminal } from "./ChartTerminal";
 export { default as TopMovers } from "./TopMovers";
 export { default as LiveFeedCard } from "./LiveFeedCard";
 export { default as LiveNewsFeedSection } from "./LiveNewsFeedSection";
+export { default as SectorMovesSection } from "./SectorMovesSection";
 

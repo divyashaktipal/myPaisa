@@ -1,36 +1,74 @@
 import { NextResponse } from "next/server";
 import { serp, normalizeGoogleFinanceSymbol } from "@/lib/serpapi";
 import type { SerpApiFinanceResponse } from "@/lib/serpapi";
-import {
-  FALLBACK_LEAD_STORY,
-  FALLBACK_SHORTS,
-  FALLBACK_STORIES,
-} from "@/constants/MarketNews";
 import type { NewsStoryItem, MarketNewsResponse } from "@/types/MarketNews";
-
 import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
-// Helper to deduce relevant stock tickers from headline
+// Common financial & English non-ticker terms to ignore when deducing stock symbols
+const STOP_WORDS = new Set([
+  "THE", "AND", "FOR", "NEW", "ALL", "TOP", "Q1", "Q2", "Q3", "Q4",
+  "FY24", "FY25", "FY26", "FY27", "CEO", "CFO", "IPO", "RBI", "SEBI", "USD",
+  "INR", "GDP", "AI", "US", "UK", "EU", "LTD", "PLC", "CORP", "INC",
+  "NEWS", "TODAY", "ALERT", "STOCK", "STOCKS", "SHARE", "SHARES",
+  "MARKET", "GAIN", "LOSS", "BUY", "SELL", "HOLD", "RECORD", "HIGH",
+  "LOW", "SURGE", "PLUNGE", "FALL", "RISE", "BEAT", "MISS", "CRASH",
+  "JUMP", "DROP", "SOAR", "DIP", "SLUMP", "INDIA", "GLOBAL", "NET",
+  "PROFIT", "REVENUE", "DEAL", "TARGET", "PRICE", "CALL", "UPDATE",
+  "WHY", "HOW", "WHAT", "WHO", "WITH", "FROM", "OVER", "INTO", "DOWN",
+  "AFTER", "BEFORE", "MORE", "LESS", "YEAR", "WEEK", "DAY", "MONTH",
+  "REPORT", "POSTS", "SEES", "HITS", "BULL", "BEAR", "RATE", "RATES",
+  "BANK", "BANKS", "GROUP", "GROWTH", "FUNDS", "FUND", "TRADE", "TRADING"
+]);
+
+// Helper to deduce relevant stock tickers dynamically from headline without hardcoded stock names
 function extractTickers(text: string): string[] {
+  if (!text) return ["MARKET"];
+
+  // 1. Detect explicit exchange-prefixed tickers: e.g. NSE:TCS, BSE:RELIANCE
+  const exchangeMatch = text.match(/\b(?:NSE|BSE|INDEXNSE|INDEXBOM):([A-Z0-9_-]+)\b/i);
+  if (exchangeMatch?.[1]) {
+    return [exchangeMatch[1].toUpperCase()];
+  }
+
+  // 2. Detect parenthesized stock tickers: e.g. (TCS), (INFY), (AAPL)
+  const parenMatches = Array.from(text.matchAll(/\(([A-Z]{2,10})\)/g))
+    .map((m) => m[1]?.toUpperCase())
+    .filter((t) => t && !STOP_WORDS.has(t));
+  if (parenMatches.length > 0) {
+    return Array.from(new Set(parenMatches)).slice(0, 3);
+  }
+
+  // 3. Detect dollar-prefixed stock tickers: e.g. $RELIANCE, $NVDA
+  const dollarMatches = Array.from(text.matchAll(/\$([A-Z]{2,10})\b/g))
+    .map((m) => m[1]?.toUpperCase())
+    .filter((t) => t && !STOP_WORDS.has(t));
+  if (dollarMatches.length > 0) {
+    return Array.from(new Set(dollarMatches)).slice(0, 3);
+  }
+
+  // 4. Detect major market index references
   const upper = text.toUpperCase();
-  const knownTickers = [
-    "INFY", "TCS", "WIPRO", "HCLTECH", "LUPIN", "HDFCBANK", "SBIN",
-    "RELIANCE", "TATAMOTORS", "ICICIBANK", "BHARTIARTL", "KOTAKBANK",
-    "BANKINDIA", "ADANIENT", "ADANIPORTS", "ITC", "LT", "MARUTI",
-    "SUNPHARMA", "AXISBANK", "NTPC", "ONGC", "TITAN", "POWERGRID",
-  ];
-  const matches = knownTickers.filter(
-    (t) => upper.includes(t) || upper.includes(t.replace("BANK", ""))
-  );
-  if (matches.length > 0) return matches.slice(0, 3);
-  if (upper.includes("NIFTY")) return ["NIFTY 50"];
+  if (upper.includes("BANK NIFTY") || upper.includes("BANKNIFTY")) return ["BANK NIFTY"];
+  if (upper.includes("NIFTY 50") || upper.includes("NIFTY50")) return ["NIFTY 50"];
+  if (upper.includes("NIFTY 100")) return ["NIFTY 100"];
+  if (upper.includes("NIFTY 200")) return ["NIFTY 200"];
+  if (upper.includes("NIFTY")) return ["NIFTY"];
   if (upper.includes("SENSEX")) return ["SENSEX"];
+
+  // 5. Extract uppercase acronyms/tickers that are not generic stop words
+  const words = text.match(/\b[A-Z]{2,10}\b/g) || [];
+  const candidateTickers = words
+    .map((w) => w.toUpperCase())
+    .filter((w) => !STOP_WORDS.has(w));
+
+  if (candidateTickers.length > 0) {
+    return Array.from(new Set(candidateTickers)).slice(0, 3);
+  }
+
   return ["MARKET"];
 }
-
-import { batchGenerateGeminiSummaries } from "@/lib";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -46,40 +84,63 @@ export async function GET(req: Request) {
   const query = searchParams.get("query")?.trim() || "";
 
   try {
-    let targetSymbol = "NIFTY_50:INDEXNSE";
+    let rawNews: Array<{
+      title?: string;
+      snippet?: string;
+      source?: string;
+      date?: string;
+      link?: string;
+      thumbnail?: string;
+    }> = [];
+
     if (query) {
-      targetSymbol = normalizeGoogleFinanceSymbol(query);
-    } else if (category === "nifty100") {
-      targetSymbol = "NIFTY_100:INDEXNSE";
-    } else if (category === "nifty200") {
-      targetSymbol = "NIFTY_200:INDEXNSE";
+      // Query specific stock or index from Google Finance via SerpApi
+      const targetSymbol = normalizeGoogleFinanceSymbol(query);
+      const liveData = await serp<SerpApiFinanceResponse>(
+        { engine: "google_finance", q: targetSymbol, hl: "en" },
+        120
+      ).catch(() => null);
+
+      rawNews = liveData?.news_results || [];
+    } else {
+      // Top stories & category streams: Fetch live market news results from Google Finance via SerpApi
+      let targetIndex = "NIFTY_50:INDEXNSE";
+      if (category === "nifty100") targetIndex = "NIFTY_100:INDEXNSE";
+      else if (category === "nifty200") targetIndex = "NIFTY_200:INDEXNSE";
+
+      // Fetch index news directly from Google Finance SerpApi
+      const [indexData, marketsData] = await Promise.all([
+        serp<SerpApiFinanceResponse>({ engine: "google_finance", q: targetIndex, hl: "en" }, 120).catch(() => null),
+        serp<{ news_results?: SerpApiFinanceResponse["news_results"] }>(
+          { engine: "google_finance_markets", trend: "indexes", hl: "en" },
+          120
+        ).catch(() => null),
+      ]);
+
+      const indexNews = indexData?.news_results || [];
+      const marketsNews = marketsData?.news_results || [];
+
+      // Combine and deduplicate by article link or headline
+      const seenLinks = new Set<string>();
+      for (const item of [...indexNews, ...marketsNews]) {
+        const key = item.link || item.snippet || item.title;
+        if (key && !seenLinks.has(key)) {
+          seenLinks.add(key);
+          rawNews.push(item);
+        }
+      }
     }
 
-    const liveData = await serp<SerpApiFinanceResponse>(
-      { engine: "google_finance", q: targetSymbol },
-      120
-    ).catch(() => null);
-
-    const rawNews = liveData?.news_results || [];
-
     if (rawNews.length > 0) {
-      // Summarize news stories using Gemini API endpoint from env
-      const itemsToSummarize = rawNews.map((item) => ({
-        title: item.title || item.snippet || "Market update",
-        source: item.source || "Financial Wire",
-        snippet: item.snippet || "",
-      }));
-
-      const geminiSummaries = await batchGenerateGeminiSummaries(itemsToSummarize);
-
       const liveStories: NewsStoryItem[] = rawNews.map((item, idx) => {
         const title = item.title || item.snippet || "Market update";
         const source = item.source || "Financial Wire";
         const tickers = query ? [query.toUpperCase()] : extractTickers(title);
-        const summary = geminiSummaries[idx] || item.snippet || title;
+        // Use real publisher snippet directly from news_results without manual templates
+        const summary = item.snippet || item.title || "";
 
         return {
-          id: `live-${idx}-${Date.now()}`,
+          id: `news-${idx}-${Date.now()}`,
           title,
           source,
           date: item.date || "Just now",
@@ -91,15 +152,16 @@ export async function GET(req: Request) {
         };
       });
 
-      // If user queried a specific stock, set first item as lead
-      const leadStory = query ? { ...liveStories[0], isLead: true } : FALLBACK_LEAD_STORY;
-      const filteredStories = query ? liveStories.slice(1) : [...liveStories, ...FALLBACK_STORIES].slice(0, 8);
+      // Split real news into lead story, shorts, and remaining stories
+      const leadStory = liveStories.length > 0 ? { ...liveStories[0], isLead: true } : null;
+      const shorts = liveStories.slice(1, 5);
+      const stories = liveStories.length > 1 ? liveStories.slice(1) : liveStories;
 
       const response: MarketNewsResponse = {
         success: true,
         leadStory,
-        shorts: FALLBACK_SHORTS,
-        stories: filteredStories.length > 0 ? filteredStories : FALLBACK_STORIES,
+        shorts,
+        stories,
         activeFilter: category,
         asOf: new Date().toISOString(),
         query,
@@ -108,15 +170,15 @@ export async function GET(req: Request) {
       return NextResponse.json(response);
     }
   } catch (err) {
-    console.warn("SerpApi news fetch notice, serving curated fallback feed:", err);
+    console.warn("SerpApi news fetch notice:", err);
   }
 
-  // Fallback to high quality market newsroom feed
+  // Return empty response with no hardcoded mock data
   const response: MarketNewsResponse = {
     success: true,
-    leadStory: FALLBACK_LEAD_STORY,
-    shorts: FALLBACK_SHORTS,
-    stories: FALLBACK_STORIES,
+    leadStory: null,
+    shorts: [],
+    stories: [],
     activeFilter: category,
     asOf: new Date().toISOString(),
     query,

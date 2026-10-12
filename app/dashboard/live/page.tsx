@@ -3,11 +3,13 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { financeQueryOptions } from "@/queries/finance";
 import {
   StatusBanner,
   LiveFeedCard,
   IndexChartCard,
   MarketHeatmapSection,
+  SectorMovesSection,
   SignalsSection,
   LiveNewsFeedSection,
   useDashboard,
@@ -37,49 +39,9 @@ const LivePage = () => {
     isLoading: isFinanceLoading,
     error: financeQueryError,
     refetch: refetchFinance,
-  } = useQuery<FinanceApiResponse, DashboardErrorState>({
-    queryKey: ["finance", selectedIndex, selectedWindow],
-    queryFn: async () => {
-      const res = await fetch(
-        `${DASHBOARD_API_ROUTES.finance}?symbol=${encodeURIComponent(selectedIndex)}&window=${encodeURIComponent(selectedWindow)}`
-      );
-
-      if (res?.ok) {
-        return (await res.json()) as FinanceApiResponse;
-      }
-
-      const status = res?.status ?? 500;
-      let errorMessage = DASHBOARD_ERROR_MESSAGES[status] || DASHBOARD_FALLBACK_ERROR;
-
-      try {
-        const errorJson = await res.json();
-        if (errorJson?.error && typeof errorJson?.error === "string") {
-          errorMessage = errorJson.error;
-        }
-      } catch {
-        // Fall back to status message
-      }
-
-      const customError: DashboardErrorState = {
-        statusCode: status,
-        message: errorMessage,
-      };
-      throw customError;
-    },
-    staleTime:
-      selectedWindow === "1D"
-        ? (QUERY_CLIENT_CONFIG?.liveWindowStaleTime ?? 180000)
-        : (QUERY_CLIENT_CONFIG?.historicalWindowStaleTime ?? 900000),
-    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: (failureCount, err) => {
-      if (err?.statusCode && (err.statusCode === 400 || err.statusCode === 404)) {
-        return false;
-      }
-      return failureCount < 1;
-    },
-  });
+  } = useQuery<FinanceApiResponse, DashboardErrorState>(
+    financeQueryOptions(selectedIndex, selectedWindow)
+  );
 
   const loading = isFinanceLoading;
   const errorState = dismissedErrorKey === currentErrorKey ? null : (financeQueryError ?? null);
@@ -127,14 +89,14 @@ const LivePage = () => {
       )}
 
       {/* Real Live Timestamp Banner */}
-      {financeData?.date && (
+      {/* {financeData?.date && (
         <StatusBanner
           statusText={`${STATUS_BANNER_LABELS.liveFeedPrefix}${financeData?.title || selectedIndex}`}
           timestamp={`${STATUS_BANNER_LABELS.dataAsOfPrefix}${financeData?.date}`}
         />
-      )}
+      )} */}
 
-      {/* 1. Unified Live Feed Card matching screenshot (Header, Chart in middle div, TOP MOVERS & Commentary in bottom) */}
+      {/* 1. Unified Live Feed Card */}
       <LiveFeedCard
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
@@ -155,7 +117,7 @@ const LivePage = () => {
         }}
       />
 
-      {/* 3. Market Heatmap Section (Positioned just below Live Indices) */}
+      {/* 2. Market Heatmap Section (Positioned below Sector Moves) */}
       <MarketHeatmapSection
         onSelectStock={(stock) => {
           const targetSlug = stock.slug || stock.symbol.toLowerCase();
@@ -163,6 +125,14 @@ const LivePage = () => {
         }}
         selectedStockSymbol={selectedIndex}
       />
+
+      {/* 3. Sector Moves Section (Real-time breadth across 200 constituents) */}
+      <SectorMovesSection
+        onSelectStock={(sym) => {
+          router.push(`/dashboard/chart?symbol=${encodeURIComponent(sym)}`);
+        }}
+      />
+
 
       {/* 4. Signals Section (Dedicated 52-Week Low/High Signals Widget) */}
       <SignalsSection

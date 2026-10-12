@@ -1,5 +1,9 @@
 import type { DashboardUser } from "./DashboardNavbar";
-import type { SerpApiNewsItem, SerpApiDiscoverItem } from "./serpapi";
+import type {
+  SerpApiNewsItem,
+  SerpApiDiscoverItem,
+  SerpApiFinancialCategory,
+} from "./serpapi";
 import type { ChartPoint, ChartStat } from "./IndexChartCard";
 
 export interface DashboardPageProps {
@@ -24,6 +28,7 @@ export interface FinanceApiResponse {
   normalizedSymbol: string;
   window: string;
   price: number | null;
+  currency?: string;
   changePercent: number | null;
   movement?: "Up" | "Down" | null;
   movementValue?: number | null;
@@ -36,6 +41,7 @@ export interface FinanceApiResponse {
   aboutDetails?: CompanyBasicDetails | null;
   news?: SerpApiNewsItem[];
   related?: SerpApiDiscoverItem[];
+  financials?: SerpApiFinancialCategory[];
   error?: string;
   statusCode?: number;
 }

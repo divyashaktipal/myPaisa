@@ -4,13 +4,13 @@ import type {
 } from "@/types/SearchCommandPalette";
 
 export const SEARCH_PALETTE_CONFIG: SearchPaletteConfig = {
-  placeholder: "Search e.g. TRENT, COALINDIA, RELIANCE...",
+  placeholder: "Search any stock symbol or name (e.g. Tata, Reliance, Infosys)...",
   escLabel: "ESC",
   initialResultsCount: 15,
   maxQueryResultsCount: 25,
   noResultsMessagePrefix: "No matching stocks found for ",
-  footerSource: "Google Finance & NSE Top 200 Equities",
-  footerHint: "Click star to save to Watchlist",
+  footerSource: "Real-time NSE/BSE & Global Markets",
+  footerHint: "Click bookmark to save to Watchlist",
   currencySymbol: "₹",
   locale: "en-IN",
 };

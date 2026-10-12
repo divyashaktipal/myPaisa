@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { signalsQueryOptions } from "@/queries/signals";
 import type {
   SignalStock,
   SignalsApiResponse,
@@ -29,24 +30,15 @@ const SignalsPageContent: React.FC = () => {
   const [directionFilter, setDirectionFilter] = useState<SignalDirectionFilter>("ALL");
   const [categoryFilter, setCategoryFilter] = useState<SignalCategoryFilter>("ALL");
 
-  // TanStack React Query for signals
-  const { data: signalsResponse } = useQuery<SignalsApiResponse>({
-    queryKey: ["market-signals-page"],
-    queryFn: async () => {
-      const res = await fetch("/api/market/signals");
-      if (!res.ok) {
-        throw new Error("Failed to load signals data");
-      }
-      return res.json();
-    },
-    staleTime: 60000,
-    initialData: {
+  // TanStack React Query for signals via centralized query options
+  const { data: signalsResponse } = useQuery(
+    signalsQueryOptions("page", {
       success: true,
       summary: INITIAL_SIGNALS_SUMMARY,
       highlights: INITIAL_TOP_HIGHLIGHTS,
       signals: INITIAL_ALL_SIGNALS,
-    },
-  });
+    })
+  );
 
   const summary = signalsResponse?.summary || INITIAL_SIGNALS_SUMMARY;
   const highlights = signalsResponse?.highlights || INITIAL_TOP_HIGHLIGHTS;
@@ -98,8 +90,8 @@ const SignalsPageContent: React.FC = () => {
           {summary.totalSignals} signals • {summary.asOf}
         </div> */}
 
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight">
-          {SIGNALS_PAGE_CONFIG.heading} <br />
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white ">
+          {SIGNALS_PAGE_CONFIG.heading}
           <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-purple-400 bg-clip-text text-transparent">
             {SIGNALS_PAGE_CONFIG.headingAccent}
           </span>
@@ -225,7 +217,7 @@ const SignalsPageContent: React.FC = () => {
               </div>
 
               {/* News Catalyst Snippet if available */}
-              {stock.newsHeadline && (
+              {/* {stock.newsHeadline && (
                 <div className="mt-4 pt-3 border-t border-[#18263a] text-xs text-gray-400 line-clamp-2">
                   <span className="text-gray-300">📰 </span>
                   {stock.newsHeadline}
@@ -233,7 +225,7 @@ const SignalsPageContent: React.FC = () => {
                     {stock.newsSource} • {stock.newsTime}
                   </span>
                 </div>
-              )}
+              )} */}
             </div>
           );
         })}

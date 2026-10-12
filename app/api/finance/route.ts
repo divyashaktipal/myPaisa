@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getChart,
+  getStock,
   normalizeGoogleFinanceSymbol,
   type SerpApiFinanceResponse,
   createErrorResponse,
@@ -96,34 +97,50 @@ export async function GET(req: Request) {
     const chartPoints = (serpData?.graph || [])?.map?.((pt) => ({
       time: pt?.date,
       price: Number(pt?.price),
+      volume: pt?.volume != null ? Number(pt.volume) : undefined,
     })) ?? [];
 
-    const stats = serpData?.knowledge_graph?.key_stats?.stats || [];
-    const aboutFirst = serpData?.knowledge_graph?.about?.[0];
+    let knowledgeGraph = serpData?.knowledge_graph;
+    let rawNews = serpData?.news_results || [];
+    let related = serpData?.discover_more?.[0]?.items || [];
+    let financials = serpData?.financials || [];
+
+    // For multi-day/historical chart windows (5D, 1M, etc.), Google Finance SerpApi omits knowledge_graph & news.
+    // Seamlessly fetch or read from cached base stock details so company details and stats never disappear.
+    if (!knowledgeGraph && window.toUpperCase() !== "1D") {
+      try {
+        const baseStockData = await getStock<SerpApiFinanceResponse>(normalizedSymbol);
+        if (baseStockData?.knowledge_graph) {
+          knowledgeGraph = baseStockData.knowledge_graph;
+        }
+        if (rawNews.length === 0 && baseStockData?.news_results) {
+          rawNews = baseStockData.news_results;
+        }
+        if (related.length === 0 && baseStockData?.discover_more?.[0]?.items) {
+          related = baseStockData.discover_more[0].items;
+        }
+        if (financials.length === 0 && baseStockData?.financials) {
+          financials = baseStockData.financials;
+        }
+      } catch (fallbackErr) {
+        console.warn("Base stock details fallback notice:", fallbackErr);
+      }
+    }
+
+    const stats = knowledgeGraph?.key_stats?.stats || [];
+    const aboutFirst = knowledgeGraph?.about?.[0];
     const aboutSnippet = aboutFirst?.description?.snippet || null;
     const aboutTitle = aboutFirst?.title || summary?.title || rawSymbol;
     const aboutLink = aboutFirst?.description?.link || null;
     const aboutLinkText = aboutFirst?.description?.link_text || null;
     const aboutInfo = aboutFirst?.info || [];
-    const rawNews = serpData?.news_results || [];
-    let enrichedNews = rawNews;
-    if (rawNews.length > 0) {
-      try {
-        const itemsToSummarize = rawNews.slice(0, 8).map((item) => ({
-          title: item?.title || item?.snippet || "",
-          source: item?.source || "Google Finance",
-          snippet: item?.snippet || "",
-        }));
-        const geminiSummaries = await batchGenerateGeminiSummaries(itemsToSummarize);
-        enrichedNews = rawNews.map((item, idx) => ({
-          ...item,
-          summary: geminiSummaries[idx] || item?.snippet || item?.title,
-        }));
-      } catch (sumErr) {
-        console.warn("Gemini summarization notice in finance route:", sumErr);
-      }
-    }
-    const related = serpData?.discover_more?.[0]?.items || [];
+    const currency = summary?.currency || "INR";
+    const enrichedNews = rawNews.map((item) => ({
+      ...item,
+      title: item?.title || item?.snippet || "Market update",
+      snippet: item?.snippet || item?.title || "",
+      summary: item?.snippet || item?.title || "",
+    }));
 
     const aboutDetails = {
       title: aboutTitle,
@@ -143,6 +160,7 @@ export async function GET(req: Request) {
       normalizedSymbol,
       window,
       price,
+      currency,
       changePercent,
       movement,
       movementValue,
@@ -155,6 +173,7 @@ export async function GET(req: Request) {
       aboutDetails,
       news: enrichedNews,
       related,
+      financials,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "SerpApi request failed";

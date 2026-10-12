@@ -1,78 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import type { StockNewsSectionProps, StockNewsTab } from "@/types/StockNewsSection";
 import type { SerpApiNewsItem } from "@/types/serpapi";
 import {
   STOCK_NEWS_TABS,
   STOCK_NEWS_LABELS,
-  SECTOR_MOVES_DATA,
 } from "@/constants/StockNewsSection";
-
-// Helper to extract clean domain for source favicon
-function getSourceDomain(link?: string, source?: string): string {
-  if (link) {
-    try {
-      const url = new URL(link);
-      return url.hostname.replace("www.", "");
-    } catch {
-      // Fall through
-    }
-  }
-  if (!source) return "google.com";
-  const s = source.toLowerCase().trim();
-  if (s.includes("moneycontrol")) return "moneycontrol.com";
-  if (s.includes("business standard")) return "business-standard.com";
-  if (s.includes("economic times")) return "economictimes.indiatimes.com";
-  if (s.includes("mint") || s.includes("livemint")) return "livemint.com";
-  if (s.includes("reuters")) return "reuters.com";
-  if (s.includes("bloomberg")) return "bloomberg.com";
-  if (s.includes("businessline") || s.includes("business line")) return "thehindubusinessline.com";
-  if (s.includes("cnbc")) return "cnbctv18.com";
-  if (s.includes("ndtv")) return "ndtvprofit.com";
-  if (s.includes("financial express")) return "financialexpress.com";
-  return "google.com";
-}
-
-// Generate contextual summary for news if standalone snippet is title
-function getNewsSummary(item: SerpApiNewsItem, symbol: string): string {
-  if (item.title && item.snippet && item.title !== item.snippet) {
-    return item.snippet;
-  }
-
-  const text = (item.snippet || item.title || "").toLowerCase();
-
-  if (text.includes("fii") || text.includes("dii") || text.includes("stake") || text.includes("promoter") || text.includes("fund")) {
-    return `Institutional holding adjustment reported for ${symbol}. Market participants are actively tracking foreign and domestic fund flows, float changes, and resultant liquidity impact.`;
-  }
-
-  if (text.includes("q1") || text.includes("q2") || text.includes("q3") || text.includes("q4") || text.includes("profit") || text.includes("revenue") || text.includes("earnings") || text.includes("results")) {
-    return `Financial performance update for ${symbol}. Operational execution, margin trajectory, and revenue growth metrics remain under close review by equity analysts.`;
-  }
-
-  if (text.includes("fall") || text.includes("drop") || text.includes("slump") || text.includes("slip") || text.includes("lower") || text.includes("dip") || text.includes("down") || text.includes("pare")) {
-    return `Shares encountered downward volatility and intraday profit-taking. Technical indicators point to key support levels as traders assess broader market consolidation.`;
-  }
-
-  if (text.includes("rise") || text.includes("gain") || text.includes("surge") || text.includes("jump") || text.includes("rally") || text.includes("high") || text.includes("up")) {
-    return `Upward price momentum observed in ${symbol} backed by healthy trading volume and positive sector sentiment, driving renewed buying interest.`;
-  }
-
-  if (text.includes("ceo") || text.includes("md") || text.includes("appoint") || text.includes("chief") || text.includes("board") || text.includes("management") || text.includes("executive")) {
-    return `Executive leadership and corporate governance update for ${symbol}. Management stability and strategic continuity remain a focal point for long-term investors.`;
-  }
-
-  if (text.includes("target") || text.includes("rating") || text.includes("buy") || text.includes("sell") || text.includes("brokerage") || text.includes("emkay") || text.includes("iifl") || text.includes("jefferies")) {
-    return `Equity research evaluation: Brokerages and institutional desks have reviewed forward valuation multiples, earnings visibility, and risk-reward dynamics for ${symbol}.`;
-  }
-
-  if (text.includes("mclr") || text.includes("loan") || text.includes("rbi") || text.includes("rate") || text.includes("deposit") || text.includes("credit")) {
-    return `Credit and interest rate dynamics: Lending adjustments and banking sector benchmarks will influence asset quality and net interest margin trajectory.`;
-  }
-
-  return `Market intelligence wire: Corporate disclosures, market transactions, and sector developments monitored for ${symbol} across national financial publications.`;
-}
+import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
 
 const StockNewsSection = ({
   symbol,
@@ -81,6 +17,62 @@ const StockNewsSection = ({
   const [activeTab, setActiveTab] = useState<StockNewsTab>("trending");
   const hasNews = news.length > 0;
   const displaySymbol = symbol?.toUpperCase() || "STOCK";
+
+  // Dynamically derive sector moves from TOP_200_INDIAN_STOCKS without hardcoded data
+  const sectorMoves = useMemo(() => {
+    const sectorMap: Record<
+      string,
+      {
+        id: string;
+        name: string;
+        totalChange: number;
+        upCount: number;
+        downCount: number;
+        totalCount: number;
+        bestStock: string;
+        bestStockChange: number;
+      }
+    > = {};
+
+    TOP_200_INDIAN_STOCKS.forEach((stk) => {
+      const sector = stk.sector || "Other";
+      const id = sector.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      if (!sectorMap[sector]) {
+        sectorMap[sector] = {
+          id,
+          name: sector,
+          totalChange: 0,
+          upCount: 0,
+          downCount: 0,
+          totalCount: 0,
+          bestStock: stk.symbol,
+          bestStockChange: stk.changePercent ?? 0,
+        };
+      }
+      const s = sectorMap[sector];
+      const chg = stk.changePercent ?? 0;
+      s.totalChange += chg;
+      s.totalCount += 1;
+      if (chg >= 0) s.upCount += 1;
+      else s.downCount += 1;
+      if (chg > s.bestStockChange) {
+        s.bestStock = stk.symbol;
+        s.bestStockChange = chg;
+      }
+    });
+
+    return Object.values(sectorMap)
+      .map((sec) => ({
+        id: sec.id,
+        name: sec.name,
+        changePercent: Number((sec.totalChange / Math.max(1, sec.totalCount)).toFixed(2)),
+        upCount: sec.upCount,
+        downCount: sec.downCount,
+        totalCount: sec.totalCount,
+        bestStock: sec.bestStock,
+      }))
+      .sort((a, b) => b.changePercent - a.changePercent);
+  }, []);
 
   return (
     <div className="w-full rounded-2xl bg-[#0b121c] border border-[#1a2535] p-5 sm:p-6 shadow-xl text-white">
@@ -120,48 +112,29 @@ const StockNewsSection = ({
             {hasNews ? (
               news.map((item, idx) => {
                 const headline = item.title || item.snippet || "Financial news update";
-                const summary = getNewsSummary(item, displaySymbol);
-                const domain = getSourceDomain(item.link, item.source);
-                const faviconUrl = domain
-                  ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`
-                  : null;
+                const summary = item.snippet && item.snippet !== item.title ? item.snippet : (item.snippet || "");
 
                 return (
                   <div
                     key={idx}
                     className="py-4 first:pt-2 last:pb-2 flex items-start gap-3.5 sm:gap-4 group"
                   >
-                    {/* Left: Thumbnail with Publication Favicon Badge */}
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-[#111927] border border-[#1e2d42] shrink-0 shadow-md">
+                    {/* Left: Crisp Publication Thumbnail Badge */}
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#111927] border border-[#1e2d42] flex items-center justify-center p-2.5 shrink-0 shadow-md group-hover:border-emerald-500/40 transition">
                       {item.thumbnail ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.thumbnail}
                           alt={item.source || "News"}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                          className="w-7 h-7 sm:w-8 sm:h-8 object-contain"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = "none";
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#121b2a] to-[#0c1320] text-gray-400 font-mono text-xs font-bold">
-                          <span>📰</span>
-                        </div>
-                      )}
-
-                      {/* Publication Source Favicon Badge at Bottom-Left */}
-                      {faviconUrl && (
-                        <div className="absolute bottom-1 left-1 w-5 h-5 rounded-md bg-white p-0.5 shadow-lg border border-black/20 flex items-center justify-center">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={faviconUrl}
-                            alt={item.source || "Source"}
-                            className="w-full h-full object-contain rounded-sm"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = "none";
-                            }}
-                          />
-                        </div>
+                        <span className="text-gray-400 font-mono text-xs font-bold">
+                          {item.source?.slice(0, 2).toUpperCase() || "NW"}
+                        </span>
                       )}
                     </div>
 
@@ -220,7 +193,7 @@ const StockNewsSection = ({
       {activeTab === "sector" && (
         <div className="mt-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-2.5 sm:gap-3">
-            {SECTOR_MOVES_DATA.map((sector) => {
+            {sectorMoves.map((sector) => {
               const isPositive = sector.changePercent >= 0;
               return (
                 <div

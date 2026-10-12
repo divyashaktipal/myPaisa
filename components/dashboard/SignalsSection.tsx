@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { signalsQueryOptions } from "@/queries/signals";
 import type {
   SignalStock,
   SignalsApiResponse,
@@ -22,25 +23,15 @@ const SignalsSection: React.FC<SignalsSectionProps> = ({
   const router = useRouter();
   const [filter, setFilter] = useState<"ALL" | "UP" | "DOWN">("ALL");
 
-  // Fetch signals from API route with cache
-  const { data: signalsResponse } = useQuery<SignalsApiResponse>({
-    queryKey: ["market-signals"],
-    queryFn: async () => {
-      const res = await fetch("/api/market/signals");
-      if (!res.ok) {
-        throw new Error("Failed to load signals");
-      }
-      return res.json();
-    },
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-    initialData: {
+  // Fetch signals from API route with cache via centralized query options
+  const { data: signalsResponse } = useQuery(
+    signalsQueryOptions("section", {
       success: true,
       summary: INITIAL_SIGNALS_SUMMARY,
       highlights: [],
       signals: INITIAL_ALL_SIGNALS,
-    },
-  });
+    })
+  );
 
   const allSignals = signalsResponse?.signals || INITIAL_ALL_SIGNALS;
   const totalCount = signalsResponse?.summary?.totalSignals || allSignals.length;
