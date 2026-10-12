@@ -8,18 +8,31 @@ export interface SerpApiFinanceSummary {
   exchange?: string;
   price?: string | number;
   extracted_price?: number;
+  currency?: string;
   price_movement?: {
     percentage?: number;
     value?: number;
     movement?: "Up" | "Down";
   };
   date?: string;
+  market?: {
+    price?: string | number;
+    extracted_price?: number;
+    currency?: string;
+    price_movement?: {
+      percentage?: number;
+      value?: number;
+      movement?: "Up" | "Down";
+    };
+  };
   extensions?: string[];
 }
 
 export interface SerpApiGraphPoint {
   price: number;
   date: string;
+  volume?: number;
+  currency?: string;
 }
 
 export interface SerpApiKeyStat {
@@ -65,8 +78,40 @@ export interface SerpApiAbout {
   info?: SerpApiAboutInfo[];
 }
 
+export interface SerpApiFinancialTableItem {
+  title: string;
+  value: string;
+  change?: string;
+}
+
+export interface SerpApiFinancialPeriod {
+  date: string;
+  period_type: "Quarterly" | "Annual" | string;
+  table: SerpApiFinancialTableItem[];
+}
+
+export interface SerpApiFinancialCategory {
+  title: string;
+  results: SerpApiFinancialPeriod[];
+}
+
 export interface SerpApiFinanceResponse {
-  search_metadata?: { status?: string };
+  search_metadata?: {
+    id?: string;
+    status?: string;
+    json_endpoint?: string;
+    markdown_endpoint?: string;
+    created_at?: string;
+    processed_at?: string;
+    google_finance_url?: string;
+    raw_html_file?: string;
+    total_time_taken?: number;
+  };
+  search_parameters?: {
+    engine?: string;
+    q?: string;
+    hl?: string;
+  };
   summary?: SerpApiFinanceSummary;
   graph?: SerpApiGraphPoint[];
   knowledge_graph?: {
@@ -76,6 +121,7 @@ export interface SerpApiFinanceResponse {
     about?: SerpApiAbout[];
   };
   news_results?: SerpApiNewsItem[];
+  financials?: SerpApiFinancialCategory[];
   discover_more?: Array<{
     items?: SerpApiDiscoverItem[];
   }>;

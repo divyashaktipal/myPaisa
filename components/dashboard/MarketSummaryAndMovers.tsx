@@ -13,6 +13,7 @@ import {
   WATCHLIST_INTERACTION,
 } from "@/constants/MarketSummaryAndMovers";
 import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
+import BookmarkIcon from "@/components/icons/BookmarkIcon";
 
 const MarketSummaryAndMovers = ({
   indexName = MARKET_SUMMARY_DEFAULTS.defaultIndexName,
@@ -82,25 +83,56 @@ const MarketSummaryAndMovers = ({
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 font-mono">
               {MARKET_SUMMARY_HEADERS.liveNewsFeedPrefix}{indexName}
             </h3>
-            {news?.map?.((item, idx) => (
-              <a
-                key={idx}
-                href={item?.link || "#"}
-                target="_blank"
-                rel="noreferrer"
-                className="block p-3.5 rounded-2xl bg-[#0b121c] hover:bg-[#111b29] border border-[#1a2535] transition group"
-              >
-                <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1 font-mono">
-                  <span className="font-semibold text-emerald-400">
-                    {item?.source || MARKET_SUMMARY_DEFAULTS.defaultSourceName}
-                  </span>
-                  {item?.date && <span>{item?.date}</span>}
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-white group-hover:text-emerald-300 transition leading-snug">
-                  {item?.snippet || item?.title}
-                </p>
-              </a>
-            ))}
+            {news?.map?.((item, idx) => {
+              const headline = item?.title || item?.snippet || "Market update";
+              const summaryText = item?.snippet && item?.snippet !== item?.title ? item?.snippet : "";
+              const thumb = item?.thumbnail;
+
+              return (
+                <a
+                  key={idx}
+                  href={item?.link || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#0b121c] hover:bg-[#111b29] border border-[#1a2535] transition group"
+                >
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#101927] border border-[#1d2b3e] flex items-center justify-center p-2 shrink-0 group-hover:border-emerald-500/40 transition">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt={item?.source || "News"}
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <span className="text-gray-400 font-mono text-xs font-bold">
+                        {item?.source?.slice(0, 2).toUpperCase() || "NW"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1 font-mono">
+                      <span className="font-semibold text-emerald-400">
+                        {item?.source || MARKET_SUMMARY_DEFAULTS.defaultSourceName}
+                      </span>
+                      {item?.date && <span>{item?.date}</span>}
+                    </div>
+                    <p className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition leading-snug line-clamp-2">
+                      {headline}
+                    </p>
+                    {summaryText && (
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
+                        {summaryText}
+                      </p>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
           </div>
         )}
 
@@ -187,8 +219,8 @@ const MarketSummaryAndMovers = ({
                           e.stopPropagation();
                           onToggleWatchlist?.(stock.symbol);
                         }}
-                        className={`text-sm transition cursor-pointer ${
-                          isWatchlisted ? "text-amber-400" : "text-gray-600 hover:text-gray-400"
+                        className={`p-1 rounded-lg transition cursor-pointer ${
+                          isWatchlisted ? "text-amber-400 hover:text-amber-300" : "text-gray-600 hover:text-gray-400"
                         }`}
                         title={
                           isWatchlisted
@@ -196,9 +228,10 @@ const MarketSummaryAndMovers = ({
                             : WATCHLIST_INTERACTION.addToWatchlistTooltip
                         }
                       >
-                        {isWatchlisted
-                          ? WATCHLIST_INTERACTION.activeStar
-                          : WATCHLIST_INTERACTION.inactiveStar}
+                        <BookmarkIcon
+                          filled={isWatchlisted}
+                          className={`w-4 h-4 ${isWatchlisted ? "text-amber-400" : "text-gray-500 hover:text-gray-300"}`}
+                        />
                       </button>
                     )}
                     <span className="font-bold text-sm sm:text-base text-white tracking-tight font-mono group-hover:text-emerald-400 transition">

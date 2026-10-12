@@ -21,7 +21,7 @@ export const BRAND_LOGO_CONFIG: BrandLogoConfig = {
 };
 
 export const SEARCH_INPUT_CONFIG: SearchInputConfig = {
-  placeholder: "Search, e.g. TRENT, COA...",
+  placeholder: "Search stocks, indices (e.g. HDFC, NSE)...",
   shortcutKey: "⌘K",
   mobileLabel: "Search stocks (⌘K)",
 };

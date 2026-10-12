@@ -47,4 +47,6 @@ export interface TanStackStockChartProps {
   onSelectWindow?: (window: string) => void;
   onClose?: () => void;
   onOpenFullTerminal?: (symbol: string) => void;
+  chartEngine?: "tanstack" | "candlestick";
+  onChangeChartEngine?: (engine: "tanstack" | "candlestick") => void;
 }

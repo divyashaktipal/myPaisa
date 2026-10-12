@@ -21,6 +21,9 @@ export type {
   SerpApiAboutInfo,
   SerpApiAbout,
   SerpApiFinanceResponse,
+  SerpApiFinancialTableItem,
+  SerpApiFinancialPeriod,
+  SerpApiFinancialCategory,
 } from "@/types/serpapi";
 
 /**
@@ -90,13 +93,29 @@ export function normalizeGoogleFinanceSymbol(raw: string): string {
     return `${clean.replace("BSE:", "")}:BSE`;
   }
 
-  // Already TICKER:EXCHANGE
+  // Already TICKER:EXCHANGE (e.g. GOOGL:NASDAQ, RELIANCE:NSE)
   if (clean.includes(":")) {
     return clean;
   }
 
+  // Handle common US large-cap tickers
+  const US_TICKERS: Record<string, string> = {
+    GOOGL: "GOOGL:NASDAQ",
+    GOOG: "GOOG:NASDAQ",
+    AAPL: "AAPL:NASDAQ",
+    MSFT: "MSFT:NASDAQ",
+    AMZN: "AMZN:NASDAQ",
+    NVDA: "NVDA:NASDAQ",
+    META: "META:NASDAQ",
+    TSLA: "TSLA:NASDAQ",
+  };
+  const upper = clean.toUpperCase();
+  if (US_TICKERS[upper]) {
+    return US_TICKERS[upper];
+  }
+
   // Default to NSE exchange
-  return `${clean.toUpperCase()}:NSE`;
+  return `${upper}:NSE`;
 }
 
 // In-memory cache to prevent quota exhaustion
@@ -150,7 +169,7 @@ export async function serp<T = Record<string, unknown>>(params: SerpParams, ttlS
 
 export function getStock<T = SerpApiFinanceResponse>(symbol: string, ttl = 120): Promise<T> {
   const normalized = normalizeGoogleFinanceSymbol(symbol);
-  return serp<T>({ engine: "google_finance", q: normalized }, ttl);
+  return serp<T>({ engine: "google_finance", q: normalized, hl: "en" }, ttl);
 }
 
 export function getChart<T = SerpApiFinanceResponse>(symbol: string, window: string): Promise<T> {
@@ -159,7 +178,7 @@ export function getChart<T = SerpApiFinanceResponse>(symbol: string, window: str
   }
   const normalized = normalizeGoogleFinanceSymbol(symbol);
   const ttl = window === "1D" ? 120 : 1800; // 2 min for 1D, 30 min for multi-day
-  const params: SerpParams = { engine: "google_finance", q: normalized };
+  const params: SerpParams = { engine: "google_finance", q: normalized, hl: "en" };
   if (window !== "1D") {
     params.window = window;
   }

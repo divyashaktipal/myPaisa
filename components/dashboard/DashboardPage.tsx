@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { financeQueryOptions } from "@/queries/finance";
+import { watchlistQueryOptions, toggleWatchlistApi } from "@/queries/watchlist";
 import {
   DashboardNavbar,
   StatusBanner,
@@ -12,7 +14,6 @@ import {
   SearchCommandPalette,
   WatchlistSection,
   MarketHeatmapSection,
-  TanStackStockChart,
   SignalsSection,
   SignalsPageContent,
   LiveFeedCard,
@@ -25,6 +26,7 @@ import type {
   FinanceApiResponse,
   DashboardErrorState,
 } from "@/types/DashboardPage";
+import type { ChartStat } from "@/types/IndexChartCard";
 import {
   DEFAULT_DASHBOARD_STATE,
   LIVE_INDEX_SYMBOLS,
@@ -48,76 +50,55 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
   // TanStack React Query: Dynamic caching with window-dependent staleTime
   const currentErrorKey = `${selectedIndex}-${selectedWindow}`;
 
+  // TanStack React Query: Dynamic caching with keepPreviousData via centralized query options
   const {
     data: financeData,
     isLoading: isFinanceLoading,
+    isFetching: isFinanceFetching,
     error: financeQueryError,
     refetch: refetchFinance,
-  } = useQuery<FinanceApiResponse, DashboardErrorState>({
-    queryKey: ["finance", selectedIndex, selectedWindow],
-    queryFn: async () => {
-      const res = await fetch(
-        `${DASHBOARD_API_ROUTES.finance}?symbol=${encodeURIComponent(selectedIndex)}&window=${encodeURIComponent(selectedWindow)}`
-      );
+  } = useQuery<FinanceApiResponse, DashboardErrorState>(
+    financeQueryOptions(selectedIndex, selectedWindow)
+  );
 
-      if (res?.ok) {
-        return (await res.json()) as FinanceApiResponse;
-      }
+  // Retain company details across window changes so the right panel never disappears
+  const lastKnownAboutRef = useRef<{
+    [symbol: string]: {
+      aboutSnippet?: string | null;
+      aboutLink?: string | null;
+      aboutInfo?: Array<{ title?: string; value?: string }>;
+      stats?: ChartStat[];
+      title?: string | null;
+      exchange?: string | null;
+    };
+  }>({});
 
-      const status = res?.status ?? 500;
-      let errorMessage = DASHBOARD_ERROR_MESSAGES[status] || DASHBOARD_FALLBACK_ERROR;
-
-      try {
-        const errorJson = await res.json();
-        if (errorJson?.error && typeof errorJson?.error === "string") {
-          errorMessage = errorJson.error;
-        }
-      } catch {
-        // Fall back to status message
-      }
-
-      const customError: DashboardErrorState = {
-        statusCode: status,
-        message: errorMessage,
+  if (financeData?.symbol) {
+    const sym = financeData.symbol.toUpperCase();
+    const currSnippet = financeData.aboutDetails?.snippet || financeData.about;
+    const currStats = financeData.aboutDetails?.stats || financeData.stats;
+    if (currSnippet || (currStats && currStats.length > 0)) {
+      lastKnownAboutRef.current[sym] = {
+        aboutSnippet: currSnippet,
+        aboutLink: financeData.aboutDetails?.link,
+        aboutInfo: financeData.aboutDetails?.info,
+        stats: currStats,
+        title: financeData.title || financeData.aboutDetails?.title,
+        exchange: financeData.exchange,
       };
-      throw customError;
-    },
-    staleTime:
-      selectedWindow === "1D"
-        ? (QUERY_CLIENT_CONFIG?.liveWindowStaleTime ?? 180000)
-        : (QUERY_CLIENT_CONFIG?.historicalWindowStaleTime ?? 900000),
-    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: (failureCount, err) => {
-      if (err?.statusCode && (err.statusCode === 400 || err.statusCode === 404)) {
-        return false;
-      }
-      return failureCount < 1;
-    },
-  });
+    }
+  }
 
+  const cachedAbout = lastKnownAboutRef.current[(financeData?.symbol || selectedIndex).toUpperCase()];
+  const isInitialLoading = isFinanceLoading && !financeData;
+  const isUpdatingData = isFinanceLoading || isFinanceFetching;
   const loading = isFinanceLoading;
   const errorState = dismissedErrorKey === currentErrorKey ? null : (financeQueryError ?? null);
 
-  // TanStack React Query: Cached Watchlist query
-  const { data: watchlistData } = useQuery<{ success: boolean; symbols: string[] }>({
-    queryKey: ["watchlist"],
-    queryFn: async () => {
-      const res = await fetch(DASHBOARD_API_ROUTES.watchlist);
-      if (!res?.ok) {
-        if (res?.status === 401) {
-          console.warn("Watchlist: user unauthenticated, running in guest mode.");
-        }
-        return { success: false, symbols: [...DEFAULT_DASHBOARD_STATE.initialWatchlist] };
-      }
-      return res.json();
-    },
-    staleTime: QUERY_CLIENT_CONFIG?.watchlistStaleTime ?? 300000,
-    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
+  // TanStack React Query: Cached Watchlist query via centralized query options
+  const { data: watchlistData } = useQuery<{ success: boolean; symbols: string[] }>(
+    watchlistQueryOptions()
+  );
 
   const watchlist =
     watchlistData?.symbols && Array.isArray(watchlistData?.symbols)
@@ -126,25 +107,7 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
 
   // TanStack React Query: Optimistic Watchlist Mutation with auto-rollback on error
   const toggleWatchlistMutation = useMutation({
-    mutationFn: async (symbol: string) => {
-      const res = await fetch(DASHBOARD_API_ROUTES.watchlist, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol }),
-      });
-
-      if (!res?.ok) {
-        const status = res?.status ?? 500;
-        const err = new Error(
-          status === 401
-            ? "Sign in required to persist watchlist across sessions."
-            : WATCHLIST_UPDATE_ERROR
-        );
-        (err as unknown as { status: number }).status = status;
-        throw err;
-      }
-      return res.json();
-    },
+    mutationFn: toggleWatchlistApi,
     onMutate: async (symbol: string) => {
       setWatchlistNotification(null);
       await queryClient.cancelQueries({ queryKey: ["watchlist"] });
@@ -183,8 +146,6 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
     },
   });
 
-  const [chartEngine, setChartEngine] = useState<"tanstack" | "candlestick">("tanstack");
-
   // Sync URL query param ?stock=slug on load
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -209,8 +170,8 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
       typeof stockOrSymbol === "string"
         ? stockOrSymbol.toLowerCase()
         : "slug" in stockOrSymbol && stockOrSymbol.slug
-        ? stockOrSymbol.slug
-        : symbol.toLowerCase();
+          ? stockOrSymbol.slug
+          : symbol.toLowerCase();
 
     if (symbol) {
       setSelectedIndex(symbol);
@@ -293,12 +254,12 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
         )}
 
         {/* Real Live Timestamp Banner */}
-        {financeData?.date && (
+        {/* {financeData?.date && (
           <StatusBanner
             statusText={`${STATUS_BANNER_LABELS.liveFeedPrefix}${financeData?.title || selectedIndex}`}
             timestamp={`${STATUS_BANNER_LABELS.dataAsOfPrefix}${financeData?.date}`}
           />
-        )}
+        )} */}
 
         {activeTab === "watchlist" ? (
           /* Watchlist View */
@@ -319,41 +280,11 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
                   onClick={() => setActiveTab("live")}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121c2c] hover:bg-[#1a283e] text-emerald-400 hover:text-emerald-300 border border-[#1e2f48] text-xs font-semibold transition cursor-pointer"
                 >
-                  <span>← Back to Live Heatmap</span>
+                  <span>← Back</span>
                 </button>
-                <span className="text-gray-600 text-xs hidden sm:inline">|</span>
-                <span className="text-xs text-gray-400 font-mono hidden sm:inline">
-                  Inspecting <span className="text-white font-bold">{financeData?.title || selectedIndex}</span> ({selectedIndex.toLowerCase()})
-                </span>
               </div>
 
-              <div className="flex items-center gap-3">
-                {/* Engine Selector */}
-                <div className="flex items-center gap-1 bg-[#05080e] p-1 rounded-xl border border-[#141e2e]">
-                  <button
-                    type="button"
-                    onClick={() => setChartEngine("tanstack")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      chartEngine === "tanstack"
-                        ? "bg-[#182638] text-white shadow-sm"
-                        : "text-gray-400 hover:text-gray-200"
-                    }`}
-                  >
-                    TanStack Chart
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChartEngine("candlestick")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      chartEngine === "candlestick"
-                        ? "bg-[#182638] text-white shadow-sm"
-                        : "text-gray-400 hover:text-gray-200"
-                    }`}
-                  >
-                    Candlestick
-                  </button>
-                </div>
-
+              {/* <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setIsSearchOpen(true)}
@@ -361,63 +292,46 @@ const DashboardPage = ({ user }: DashboardPageProps) => {
                 >
                   Search (⌘K)
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Split layout: Chart on Left, Company Details on Right */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Left Column: Interactive Stock Chart */}
+              {/* Left Column: Interactive Candlestick Stock Chart */}
               <div className="lg:col-span-8">
-                {chartEngine === "tanstack" ? (
-                  <TanStackStockChart
-                    stock={{
-                      symbol: financeData?.symbol || selectedIndex,
-                      name: financeData?.title || financeData?.aboutDetails?.title || selectedIndex,
-                      slug: (financeData?.symbol || selectedIndex).toLowerCase(),
-                      price: financeData?.price ?? 0,
-                      change: financeData?.movementValue ?? 0,
-                      changePercent: financeData?.changePercent ?? 0,
-                      turnoverCr: Math.round(((financeData?.price ?? 0) * 2000000) / 10000000),
-                      volume: 2000000,
-                      sector: financeData?.aboutDetails?.exchange || "NSE",
-                    }}
-                    selectedWindow={selectedWindow}
-                    onSelectWindow={setSelectedWindow}
-                  />
-                ) : (
-                  <CandlestickChart
-                    symbol={financeData?.symbol || selectedIndex}
-                    title={financeData?.title || financeData?.aboutDetails?.title}
-                    exchange={financeData?.exchange}
-                    price={financeData?.price ?? null}
-                    changePercent={financeData?.changePercent ?? null}
-                    movement={financeData?.movement ?? null}
-                    movementValue={financeData?.movementValue ?? null}
-                    date={financeData?.date ?? null}
-                    chartPoints={financeData?.chartPoints ?? []}
-                    selectedWindow={selectedWindow}
-                    setSelectedWindow={setSelectedWindow}
-                    loading={loading}
-                    onBackToIndices={() => setActiveTab("live")}
-                  />
-                )}
+                <CandlestickChart
+                  symbol={financeData?.symbol || selectedIndex}
+                  title={financeData?.title || financeData?.aboutDetails?.title || cachedAbout?.title}
+                  exchange={financeData?.exchange || cachedAbout?.exchange}
+                  price={financeData?.price ?? null}
+                  changePercent={financeData?.changePercent ?? null}
+                  movement={financeData?.movement ?? null}
+                  movementValue={financeData?.movementValue ?? null}
+                  date={financeData?.date ?? null}
+                  chartPoints={financeData?.chartPoints ?? []}
+                  stats={financeData?.stats || cachedAbout?.stats || []}
+                  selectedWindow={selectedWindow}
+                  setSelectedWindow={setSelectedWindow}
+                  loading={isUpdatingData}
+                  onBackToIndices={() => setActiveTab("live")}
+                />
               </div>
 
               {/* Right Column: Company Basic Details from SerpApi Knowledge Graph */}
               <div className="lg:col-span-4">
                 <CompanyDetailsCard
                   symbol={financeData?.symbol || selectedIndex}
-                  title={financeData?.title || financeData?.aboutDetails?.title}
-                  exchange={financeData?.exchange}
+                  title={financeData?.title || financeData?.aboutDetails?.title || cachedAbout?.title}
+                  exchange={financeData?.exchange || cachedAbout?.exchange}
                   price={financeData?.price ?? null}
                   changePercent={financeData?.changePercent ?? null}
-                  aboutSnippet={financeData?.aboutDetails?.snippet || financeData?.about}
-                  aboutLink={financeData?.aboutDetails?.link}
-                  aboutInfo={financeData?.aboutDetails?.info}
-                  stats={financeData?.aboutDetails?.stats || financeData?.stats}
+                  aboutSnippet={financeData?.aboutDetails?.snippet || financeData?.about || cachedAbout?.aboutSnippet}
+                  aboutLink={financeData?.aboutDetails?.link || cachedAbout?.aboutLink}
+                  aboutInfo={financeData?.aboutDetails?.info || cachedAbout?.aboutInfo}
+                  stats={financeData?.aboutDetails?.stats || financeData?.stats || cachedAbout?.stats}
                   isInWatchlist={watchlist.includes(financeData?.symbol || selectedIndex)}
                   onToggleWatchlist={handleToggleWatchlist}
-                  loading={loading}
+                  loading={isInitialLoading}
                 />
               </div>
             </div>

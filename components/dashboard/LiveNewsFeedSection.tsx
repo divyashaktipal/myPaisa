@@ -2,28 +2,11 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { newsQueryOptions } from "@/queries/news";
 import type { LiveNewsFeedSectionProps } from "@/types/LiveNewsFeed";
-import { FALLBACK_STORIES } from "@/constants/MarketNews";
 
-function getSourceBadgeStyle(source: string): { bg: string; text: string; label: string } {
-  const s = source.toLowerCase();
-  if (s.includes("et now") || s.includes("economic times")) {
-    return { bg: "bg-red-950/90 border-red-600/70", text: "text-red-200", label: "ET" };
-  }
-  if (s.includes("mint") || s.includes("livemint")) {
-    return { bg: "bg-amber-950/90 border-amber-600/70", text: "text-amber-200", label: "mint" };
-  }
-  if (s.includes("ndtv")) {
-    return { bg: "bg-slate-900/90 border-slate-600/70", text: "text-white", label: "NDTV" };
-  }
-  if (s.includes("moneycontrol")) {
-    return { bg: "bg-emerald-950/90 border-emerald-600/70", text: "text-emerald-200", label: "MC" };
-  }
-  if (s.includes("cnbc")) {
-    return { bg: "bg-blue-950/90 border-blue-600/70", text: "text-blue-200", label: "CNBC" };
-  }
-  return { bg: "bg-[#141f30] border-[#22334a]", text: "text-gray-300", label: source.slice(0, 4).toUpperCase() };
-}
+
 
 const LiveNewsFeedSection: React.FC<LiveNewsFeedSectionProps> = ({
   news = [],
@@ -32,8 +15,13 @@ const LiveNewsFeedSection: React.FC<LiveNewsFeedSectionProps> = ({
 }) => {
   const router = useRouter();
 
-  // If news is provided from SerpApi knowledge graph, map them with fallbacks
-  const displayStories = news && news.length >= 3 ? news : FALLBACK_STORIES;
+  // If news is not passed from knowledge graph, fetch real live wire from /api/news
+  const { data: newsData, isLoading } = useQuery({
+    ...newsQueryOptions("top_stories"),
+    enabled: !news || news.length === 0,
+  });
+
+  const displayStories = news && news.length > 0 ? news : (newsData?.stories || []);
 
   const handleShowAll = () => {
     router.push("/dashboard/news");
@@ -67,98 +55,114 @@ const LiveNewsFeedSection: React.FC<LiveNewsFeedSectionProps> = ({
 
       {/* Rows Feed matching screenshot */}
       <div className="divide-y divide-[#131d2c]">
-        {displayStories.map((item, idx) => {
-          const source = item.source || "Google News";
-          const badge = getSourceBadgeStyle(source);
-          const summaryText =
-            ("summary" in item && typeof item.summary === "string" ? item.summary : "") ||
-            ("snippet" in item && typeof item.snippet === "string" ? item.snippet : "") ||
-            "";
-          const thumbnail =
-            ("thumbnail" in item && typeof item.thumbnail === "string" && item.thumbnail.length > 5
-              ? item.thumbnail
-              : null) ||
-            FALLBACK_STORIES[idx % FALLBACK_STORIES.length]?.thumbnail;
-
-          const tickers: string[] =
-            ("tickers" in item && Array.isArray(item.tickers) ? item.tickers : null) ||
-            (FALLBACK_STORIES[idx % FALLBACK_STORIES.length]?.tickers ?? ["NIFTY"]);
-
-          return (
-            <div
-              key={idx}
-              onClick={() => {
-                if (item.link && item.link.startsWith("http")) {
-                  window.open(item.link, "_blank", "noreferrer");
-                } else {
-                  handleShowAll();
-                }
-              }}
-              className="py-4 sm:py-5 flex items-start gap-4 hover:bg-[#0c1422] -mx-2 px-2 sm:-mx-3 sm:px-3 rounded-2xl transition group cursor-pointer"
-            >
-              {/* Left: Thumbnail with Source Badge overlay in corner */}
-              <div className="relative w-24 h-16 sm:w-32 sm:h-20 rounded-xl overflow-hidden bg-[#101724] shrink-0 border border-[#1b283a]">
-                {thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={thumbnail}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#131c2c] text-gray-400 text-lg">
-                    📰
-                  </div>
-                )}
-                {/* Source badge overlay on thumbnail matching screenshot */}
-                <div
-                  className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold font-mono border shadow-md backdrop-blur-sm ${badge.bg} ${badge.text}`}
-                >
-                  {badge.label}
+        {isLoading && (!news || news.length === 0) ? (
+          <div className="py-8 space-y-4 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-4 py-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#101724] shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-[#101724] rounded w-3/4" />
+                  <div className="h-3 bg-[#101724] rounded w-1/3" />
+                  <div className="h-3 bg-[#101724] rounded w-full" />
                 </div>
               </div>
+            ))}
+          </div>
+        ) : displayStories.length > 0 ? (
+          displayStories.map((item, idx) => {
+            const source = item.source || "Google News";
+            // Real publisher summary directly from news_results snippet
+            const summaryText =
+              ("snippet" in item && typeof item.snippet === "string" ? item.snippet : "") ||
+              ("summary" in item && typeof item.summary === "string" ? item.summary : "") ||
+              "";
+            const thumbnail =
+              "thumbnail" in item && typeof item.thumbnail === "string" && item.thumbnail.length > 5
+                ? item.thumbnail
+                : null;
 
-              {/* Right: Content details */}
-              <div className="flex-1 min-w-0 space-y-1">
-                {/* Title */}
-                <h3 className="text-xs sm:text-[14px] font-bold text-white group-hover:text-emerald-300 transition leading-snug line-clamp-2">
-                  {item.title}
-                </h3>
+            const tickers: string[] =
+              "tickers" in item && Array.isArray(item.tickers) && item.tickers.length > 0
+                ? item.tickers
+                : ["MARKET"];
 
-                {/* Source · Date · Ticker tags */}
-                <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-wrap pt-0.5">
-                  <span className="font-medium text-gray-300">{source}</span>
-                  <span>·</span>
-                  <span>{item.date || "Just now"}</span>
-                  {tickers.map((sym) => (
-                    <button
-                      key={sym}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onSelectStock) {
-                          onSelectStock(sym);
-                        } else {
-                          router.push(`/dashboard/chart?symbol=${encodeURIComponent(sym)}`);
-                        }
+            return (
+              <div
+                key={idx}
+                onClick={() => {
+                  if (item.link && item.link.startsWith("http")) {
+                    window.open(item.link, "_blank", "noreferrer");
+                  } else {
+                    handleShowAll();
+                  }
+                }}
+                className="py-4 sm:py-5 flex items-start gap-4 hover:bg-[#0c1422] -mx-2 px-2 sm:-mx-3 sm:px-3 rounded-2xl transition group cursor-pointer"
+              >
+                {/* Left: Real Publisher Thumbnail Icon */}
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#101826] border border-[#1e2c40] flex items-center justify-center p-2.5 shrink-0 shadow-md group-hover:border-emerald-500/40 transition">
+                  {thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnail}
+                      alt={source}
+                      className="w-7 h-7 sm:w-8 sm:h-8 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
                       }}
-                      className="px-2 py-0.5 rounded-md bg-[#131d2b] hover:bg-[#1a283b] border border-[#1e2e43] text-[10px] font-mono font-bold text-gray-200 hover:text-emerald-300 transition cursor-pointer"
-                    >
-                      {sym}
-                    </button>
-                  ))}
+                    />
+                  ) : (
+                    <span className="font-bold text-xs text-gray-300 font-mono">
+                      {source?.slice(0, 2).toUpperCase() || "NW"}
+                    </span>
+                  )}
                 </div>
 
-                {/* News Summary included as requested */}
-                {summaryText && (
-                  <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed pt-1">
-                    {summaryText}
-                  </p>
-                )}
+                {/* Right: Content details */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  {/* Title */}
+                  <h3 className="text-xs sm:text-[14px] font-bold text-white group-hover:text-emerald-300 transition leading-snug line-clamp-2">
+                    {item.title}
+                  </h3>
+
+                  {/* Source · Date · Ticker tags */}
+                  <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-wrap pt-0.5">
+                    <span className="font-medium text-gray-300">{source}</span>
+                    <span>·</span>
+                    <span>{item.date || "Just now"}</span>
+                    {tickers.map((sym) => (
+                      <button
+                        key={sym}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onSelectStock) {
+                            onSelectStock(sym);
+                          } else {
+                            router.push(`/dashboard/chart?symbol=${encodeURIComponent(sym)}`);
+                          }
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-[#131d2b] hover:bg-[#1a283b] border border-[#1e2e43] text-[10px] font-mono font-bold text-gray-200 hover:text-emerald-300 transition cursor-pointer"
+                      >
+                        {sym}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* News Summary: Real publisher snippet directly from news_results */}
+                  {summaryText && (
+                    <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed pt-1">
+                      {summaryText}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          <div className="py-12 text-center text-xs text-gray-400 font-mono">
+            No recent news stories found. Live market wire is active.
+          </div>
+        )}
       </div>
 
       {/* Bottom disclaimer note matching screenshot */}

@@ -27,6 +27,7 @@ export async function GET() {
       authenticated: true,
       user: {
         name: session.user.name || "Member",
+        email: session.user.email || null,
         role: mongoUser?.role || "trader",
       },
     });

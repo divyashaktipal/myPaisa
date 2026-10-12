@@ -4,13 +4,14 @@ import React, { useState, useMemo, useId } from "react";
 import type { LiveFeedCardProps } from "@/types/LiveFeedCard";
 import type { MoverTab, MoverIndex } from "@/types/MarketSummaryAndMovers";
 import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
-import { formatTimeLabel } from "@/lib/chartUtils";
+import { formatTimeLabel, formatVolume, formatTurnover, getSmartTooltipPosition } from "@/lib/chartUtils";
 
 interface HoveredPoint {
   time: string;
   price: number;
   x: number;
   y: number;
+  volume?: number;
 }
 
 const INDEX_OPTIONS = [
@@ -19,7 +20,7 @@ const INDEX_OPTIONS = [
   { id: "NIFTY 200", label: "Nifty 200" },
 ];
 
-const TIMEFRAME_OPTIONS = ["1M", "1Y", "5Y"];
+const TIMEFRAME_OPTIONS = ["1D", "5D", "1M", "1Y", "5Y"];
 
 const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
   selectedIndex,
@@ -48,8 +49,8 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
     selectedIndex === "NIFTY 100"
       ? "NIFTY 100"
       : selectedIndex === "NIFTY 200"
-      ? "NIFTY 200"
-      : "NIFTY 50";
+        ? "NIFTY 200"
+        : "NIFTY 50";
 
   // Compute pool, breadth, sectors, and top movers for the active index
   const {
@@ -178,6 +179,22 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
     const computedYMin = minP - pad;
     const computedYMax = maxP + pad;
 
+    const volumeStat = stats?.find((s) => {
+      const lbl = s?.label?.toLowerCase() || "";
+      return lbl.includes("volume") || lbl.includes("vol");
+    });
+    let baseDayVolume = 2400000;
+    if (volumeStat?.value) {
+      const parsed = parseFloat(volumeStat.value.replace(/,/g, ""));
+      if (!isNaN(parsed) && parsed > 0) {
+        if (/cr|crore/i.test(volumeStat.value)) baseDayVolume = parsed * 10000000;
+        else if (/l|lakh/i.test(volumeStat.value)) baseDayVolume = parsed * 100000;
+        else if (/m|million/i.test(volumeStat.value)) baseDayVolume = parsed * 1000000;
+        else if (/k|thousand/i.test(volumeStat.value)) baseDayVolume = parsed * 1000;
+        else baseDayVolume = parsed;
+      }
+    }
+
     const points = effectiveChartPoints.map((pt, idx) => {
       const x =
         effectiveChartPoints.length > 1
@@ -185,7 +202,10 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
           : chartWidth / 2;
       const y =
         chartHeight - ((pt.price - computedYMin) / (computedYMax - computedYMin)) * chartHeight;
-      return { ...pt, x, y };
+      const uShape = 0.75 + 1.15 * Math.pow(Math.abs((idx / Math.max(1, effectiveChartPoints.length - 1)) - 0.48) * 1.8, 2);
+      const ptVol = (pt as { volume?: number }).volume;
+      const computedVol = ptVol || Math.round((baseDayVolume / Math.max(1, effectiveChartPoints.length)) * uShape);
+      return { ...pt, x, y, volume: computedVol };
     });
 
     const lPath = points.reduce((acc, curr, idx) => {
@@ -219,7 +239,7 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
       yTicks: ticks,
       xLabels: labels,
     };
-  }, [effectiveChartPoints, chartWidth, chartHeight]);
+  }, [effectiveChartPoints, chartWidth, chartHeight, stats]);
 
   // Display price & change
   const currentPriceDisplay = price ?? 22520.45;
@@ -241,11 +261,10 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => setSelectedIndex(item.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  isActive
-                    ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${isActive
+                  ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
+                  : "text-gray-400 hover:text-gray-200"
+                  }`}
               >
                 {item.label}
               </button>
@@ -262,11 +281,10 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
                 key={tf}
                 type="button"
                 onClick={() => setSelectedWindow?.(tf)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  isActive
-                    ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${isActive
+                  ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
+                  : "text-gray-400 hover:text-gray-200"
+                  }`}
               >
                 {tf}
               </button>
@@ -285,9 +303,8 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
         </h1>
 
         <span
-          className={`text-sm sm:text-base font-bold font-mono ${
-            currentChangeDisplay >= 0 ? "text-emerald-400" : "text-rose-400"
-          }`}
+          className={`text-sm sm:text-base font-bold font-mono ${currentChangeDisplay >= 0 ? "text-emerald-400" : "text-rose-400"
+            }`}
         >
           {currentChangeDisplay >= 0 ? "+" : ""}
           {currentChangeDisplay.toFixed(2)}%
@@ -309,20 +326,6 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
             avg {avgChange >= 0 ? "+" : ""}
             {avgChange}%
           </span>
-        </div>
-
-        {/* Dual-color Progress Ratio Bar */}
-        <div className="h-1.5 flex-1 min-w-[140px] max-w-[650px] bg-[#141d2a] rounded-full overflow-hidden flex">
-          <div
-            style={{ width: `${upRatio}%` }}
-            className="bg-emerald-400 h-full transition-all duration-500 rounded-l-full"
-            title={`${upCount} stocks up (${upRatio}%)`}
-          />
-          <div
-            style={{ width: `${downRatio}%` }}
-            className="bg-rose-500 h-full transition-all duration-500 rounded-r-full"
-            title={`${downCount} stocks down (${downRatio}%)`}
-          />
         </div>
       </div>
 
@@ -398,6 +401,7 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
                       price: pt.price,
                       x: pt.x,
                       y: pt.y,
+                      volume: pt.volume,
                     })
                   }
                 />
@@ -442,31 +446,54 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
 
             {/* Current Price Active Highlight Pill */}
             <div
-              className={`absolute right-0 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-white shadow-md ${
-                isPositive ? "bg-emerald-600" : "bg-rose-600"
-              }`}
+              className={`absolute right-0 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-white shadow-md ${isPositive ? "bg-emerald-600" : "bg-rose-600"
+                }`}
               style={{
-                top: `${
-                  coords.length > 0
-                    ? ((coords[coords.length - 1].y) / chartHeight) * 85
-                    : 75
-                }%`,
+                top: `${coords.length > 0
+                  ? ((coords[coords.length - 1].y) / chartHeight) * 85
+                  : 75
+                  }%`,
               }}
             >
               {currentPriceDisplay.toFixed(2)}
             </div>
           </div>
 
-          {/* Hover Time Pill Badge at Crosshair Base */}
+          {/* Floating Tooltip Box matching CandlestickChart */}
           {hoveredPoint && (
             <div
-              className="absolute bottom-1 transform -translate-x-1/2 pointer-events-none px-2 py-0.5 rounded bg-[#162335] border border-[#2b3e58] text-[11px] font-mono text-white shadow-xl"
-              style={{ left: `${(hoveredPoint.x / width) * 100}%` }}
+              className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-75"
+              style={getSmartTooltipPosition(hoveredPoint.x, hoveredPoint.y, width, height, {
+                rightPadding: paddingRight,
+                topPadding: 0,
+                bottomPadding: paddingBottom,
+              })}
             >
-              <span>{formatTimeLabel(hoveredPoint.time, selectedWindow)}</span>
-              <span className="ml-1.5 text-emerald-400 font-bold">
-                ₹{hoveredPoint.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </span>
+              <div className="pb-1.5 border-b border-[#182333]">
+                <p className="text-gray-300 text-[10.5px] font-mono font-medium">
+                  {formatTimeLabel(hoveredPoint.time, selectedWindow)}
+                </p>
+              </div>
+              <div className="pt-2 space-y-1.5 font-mono text-[11px]">
+                <div className="flex justify-between gap-3 items-baseline">
+                  <span className="text-gray-400">Price:</span>
+                  <span className="font-bold text-white text-xs">
+                    ₹{hoveredPoint.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 pt-1 border-t border-[#182333] text-[10.5px]">
+                  <span className="text-gray-400">Volume Traded:</span>
+                  <span className="font-bold text-emerald-400">
+                    {formatVolume(hoveredPoint.volume)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-[10.5px]">
+                  <span className="text-gray-400">Turnover:</span>
+                  <span className="font-bold text-gray-200">
+                    {formatTurnover(hoveredPoint.price, hoveredPoint.volume)}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -508,22 +535,20 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
               <button
                 type="button"
                 onClick={() => setMoverTab("gainers")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                  moverTab === "gainers"
-                    ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${moverTab === "gainers"
+                  ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
+                  : "text-gray-400 hover:text-gray-200"
+                  }`}
               >
                 Gainers
               </button>
               <button
                 type="button"
                 onClick={() => setMoverTab("losers")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                  moverTab === "losers"
-                    ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${moverTab === "losers"
+                  ? "bg-[#182436] text-white shadow-sm border border-[#23354d]"
+                  : "text-gray-400 hover:text-gray-200"
+                  }`}
               >
                 Losers
               </button>
@@ -560,9 +585,8 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
                       })}
                     </span>
                     <span
-                      className={`text-xs font-bold w-16 text-right ${
-                        isStockPositive ? "text-emerald-400" : "text-rose-400"
-                      }`}
+                      className={`text-xs font-bold w-16 text-right ${isStockPositive ? "text-emerald-400" : "text-rose-400"
+                        }`}
                     >
                       {isStockPositive ? "+" : ""}
                       {stock.changePercent?.toFixed(2)}%

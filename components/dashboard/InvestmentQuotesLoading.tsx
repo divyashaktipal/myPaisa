@@ -199,11 +199,10 @@ const InvestmentQuotesLoading = ({
             key={item?.id ?? idx}
             type="button"
             onClick={() => setCurrentIndex(idx)}
-            className={`transition-all duration-300 rounded-full cursor-pointer ${
-              idx === currentIndex
-                ? "w-6 h-1.5 bg-emerald-400"
-                : "w-1.5 h-1.5 bg-[#202e40] hover:bg-gray-400"
-            }`}
+            className={`transition-all duration-300 rounded-full cursor-pointer ${idx === currentIndex
+              ? "w-6 h-1.5 bg-emerald-400"
+              : "w-1.5 h-1.5 bg-[#202e40] hover:bg-gray-400"
+              }`}
             aria-label={`Jump to quote ${idx + 1}`}
           />
         ))}

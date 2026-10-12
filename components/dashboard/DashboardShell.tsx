@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { watchlistQueryOptions, toggleWatchlistApi } from "@/queries/watchlist";
 import { DashboardNavbar, SearchCommandPalette } from "@/components/dashboard";
 import { FOOTER_CONTENT } from "@/constants/Footer";
 import { DashboardContext } from "./DashboardContext";
@@ -34,24 +35,10 @@ const DashboardShell = ({ user, children }: DashboardShellProps) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // TanStack React Query: Cached Watchlist query
-  const { data: watchlistData } = useQuery<{ success: boolean; symbols: string[] }>({
-    queryKey: ["watchlist"],
-    queryFn: async () => {
-      const res = await fetch(DASHBOARD_API_ROUTES.watchlist);
-      if (!res?.ok) {
-        if (res?.status === 401) {
-          console.warn("Watchlist: user unauthenticated, running in guest mode.");
-        }
-        return { success: false, symbols: [...DEFAULT_DASHBOARD_STATE.initialWatchlist] };
-      }
-      return res.json();
-    },
-    staleTime: QUERY_CLIENT_CONFIG?.watchlistStaleTime ?? 300000,
-    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
+  // TanStack React Query: Cached Watchlist query via centralized query options
+  const { data: watchlistData } = useQuery<{ success: boolean; symbols: string[] }>(
+    watchlistQueryOptions()
+  );
 
   const watchlist =
     watchlistData?.symbols && Array.isArray(watchlistData?.symbols)
@@ -60,25 +47,7 @@ const DashboardShell = ({ user, children }: DashboardShellProps) => {
 
   // TanStack React Query: Optimistic Watchlist Mutation with rollback
   const toggleWatchlistMutation = useMutation({
-    mutationFn: async (symbol: string) => {
-      const res = await fetch(DASHBOARD_API_ROUTES.watchlist, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol }),
-      });
-
-      if (!res?.ok) {
-        const status = res?.status ?? 500;
-        const err = new Error(
-          status === 401
-            ? "Sign in required to persist watchlist across sessions."
-            : WATCHLIST_UPDATE_ERROR
-        );
-        (err as unknown as { status: number }).status = status;
-        throw err;
-      }
-      return res.json();
-    },
+    mutationFn: toggleWatchlistApi,
     onMutate: async (symbol: string) => {
       setWatchlistNotification(null);
       await queryClient.cancelQueries({ queryKey: ["watchlist"] });

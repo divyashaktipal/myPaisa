@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
-import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
+import React, { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { watchlistLiveStocksQueryOptions } from "@/queries/stocks";
 import type { StockItem } from "@/types/top200Stocks";
 import type { WatchlistSectionProps } from "@/types/WatchlistSection";
 import { WATCHLIST_SECTION_CONFIG } from "@/constants/WatchlistSection";
+import BookmarkIcon from "@/components/icons/BookmarkIcon";
 
 const WatchlistSection = ({
   watchlist = [],
@@ -12,27 +14,44 @@ const WatchlistSection = ({
   onOpenSearch,
   onSelectStock,
 }: WatchlistSectionProps) => {
-  const watchlistedStocks: StockItem[] =
-    watchlist
-      ?.map?.((sym) => {
-        const match = TOP_200_INDIAN_STOCKS?.find?.((s) => s?.symbol?.toUpperCase() === sym?.toUpperCase());
-        if (match) return match;
-        return {
-          symbol: sym,
-          name: sym,
-          price: WATCHLIST_SECTION_CONFIG.fallbackStockValues.price,
-          change: WATCHLIST_SECTION_CONFIG.fallbackStockValues.change,
-          changePercent: WATCHLIST_SECTION_CONFIG.fallbackStockValues.changePercent,
-        };
-      })
-      ?.filter(Boolean) ?? [];
+  const symbolsParam = watchlist.join(",");
+
+  const { data: liveData } = useQuery(watchlistLiveStocksQueryOptions(symbolsParam));
+
+  const liveStockMap = useMemo(() => {
+    const map = new Map<string, StockItem>();
+    (liveData?.stocks || []).forEach((s) => {
+      map.set(s.symbol.toUpperCase(), s);
+    });
+    return map;
+  }, [liveData]);
+
+  const watchlistedStocks: StockItem[] = useMemo(() => {
+    return (
+      watchlist
+        ?.map?.((sym) => {
+          const live = liveStockMap.get(sym.toUpperCase());
+          if (live) return live;
+          return {
+            symbol: sym,
+            name: sym,
+            price: WATCHLIST_SECTION_CONFIG.fallbackStockValues.price,
+            change: WATCHLIST_SECTION_CONFIG.fallbackStockValues.change,
+            changePercent: WATCHLIST_SECTION_CONFIG.fallbackStockValues.changePercent,
+          };
+        })
+        ?.filter(Boolean) ?? []
+    );
+  }, [watchlist, liveStockMap]);
 
   return (
     <div className="rounded-2xl bg-[#0e1622] border border-[#1b2637] p-6 text-white shadow-xl">
       <div className="flex items-center justify-between pb-4 border-b border-[#1b2535]">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <span className="text-amber-400">{WATCHLIST_SECTION_CONFIG.starIcon}</span>{" "}
+            <span className="text-amber-400">
+              <BookmarkIcon filled className="w-5 h-5 text-amber-400 inline-block" />
+            </span>{" "}
             {WATCHLIST_SECTION_CONFIG.title}
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -72,10 +91,10 @@ const WatchlistSection = ({
                   <button
                     type="button"
                     onClick={() => onToggleWatchlist?.(stock?.symbol)}
-                    className="text-amber-400 hover:text-gray-500 transition text-sm cursor-pointer"
+                    className="text-amber-400 hover:text-gray-500 transition text-sm cursor-pointer p-1"
                     title={WATCHLIST_SECTION_CONFIG.removeTooltip}
                   >
-                    {WATCHLIST_SECTION_CONFIG.starIcon}
+                    <BookmarkIcon filled className="w-4 h-4 text-amber-400 hover:text-amber-300" />
                   </button>
                   <div>
                     {onSelectStock ? (

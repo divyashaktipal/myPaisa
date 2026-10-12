@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
+import React, { useEffect, useState, useRef } from "react";
+import type { StockItem } from "@/types/top200Stocks";
+import { searchMarketStocks } from "@/queries/stocks";
 import type { SearchCommandPaletteProps } from "@/types/SearchCommandPalette";
 import {
   SEARCH_PALETTE_CONFIG,
   SEARCH_WATCHLIST_ICONS,
 } from "@/constants/SearchCommandPalette";
+import BookmarkIcon from "@/components/icons/BookmarkIcon";
 
 const SearchCommandPalette = ({
   isOpen,
@@ -16,6 +18,9 @@ const SearchCommandPalette = ({
   onSelectStock,
 }: SearchCommandPaletteProps) => {
   const [query, setQuery] = useState("");
+  const [stocks, setStocks] = useState<StockItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keyboard shortcut listener (Cmd+K / Ctrl+K and Escape)
   useEffect(() => {
@@ -30,18 +35,34 @@ const SearchCommandPalette = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const filteredStocks = useMemo(() => {
-    if (!query?.trim?.()) return TOP_200_INDIAN_STOCKS?.slice?.(0, SEARCH_PALETTE_CONFIG.initialResultsCount) ?? [];
-    const q = query?.toLowerCase?.()?.trim?.() ?? "";
-    return (
-      TOP_200_INDIAN_STOCKS?.filter?.(
-        (s) =>
-          s?.symbol?.toLowerCase?.()?.includes?.(q) ||
-          s?.name?.toLowerCase?.()?.includes?.(q) ||
-          s?.sector?.toLowerCase?.()?.includes?.(q)
-      )?.slice?.(0, SEARCH_PALETTE_CONFIG.maxQueryResultsCount) ?? []
-    );
-  }, [query]);
+  // Dynamic live search effect
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    setIsLoading(true);
+
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const data = await searchMarketStocks(query);
+        setStocks(data.stocks || []);
+      } catch (err) {
+        console.error("Search fetch error:", err);
+        setStocks([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, query.trim() ? 250 : 0);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [query, isOpen]);
 
   if (!isOpen) return null;
 
@@ -67,6 +88,9 @@ const SearchCommandPalette = ({
             placeholder={SEARCH_PALETTE_CONFIG.placeholder}
             className="w-full bg-transparent text-white placeholder-gray-500 text-sm focus:outline-none"
           />
+          {isLoading && (
+            <div className="w-4 h-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin shrink-0" />
+          )}
           <kbd
             onClick={onClose}
             className="text-[10px] bg-[#1a2536] hover:bg-[#25354d] px-2 py-1 rounded text-gray-400 border border-[#2b3a50] cursor-pointer"
@@ -77,12 +101,17 @@ const SearchCommandPalette = ({
 
         {/* Results List */}
         <div className="max-h-[380px] overflow-y-auto p-2 divide-y divide-[#172233]">
-          {(filteredStocks?.length ?? 0) === 0 ? (
+          {isLoading && stocks.length === 0 ? (
+            <div className="p-8 text-center text-sm text-gray-400 flex items-center justify-center gap-2">
+              <span className="w-4 h-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+              <span>Searching real-time market quotes...</span>
+            </div>
+          ) : stocks.length === 0 ? (
             <div className="p-8 text-center text-sm text-gray-500">
               {SEARCH_PALETTE_CONFIG.noResultsMessagePrefix}&quot;{query}&quot;
             </div>
           ) : (
-            filteredStocks?.map?.((stock) => {
+            stocks.map((stock) => {
               const isWatchlisted = watchlist?.includes?.(stock?.symbol);
               const isPositive = (stock?.changePercent ?? 0) >= 0;
 
@@ -103,13 +132,15 @@ const SearchCommandPalette = ({
                           e?.stopPropagation?.();
                           onToggleWatchlist?.(stock?.symbol);
                         }}
-                        className={`text-base cursor-pointer ${
-                          isWatchlisted ? "text-amber-400" : "text-gray-600 hover:text-gray-300"
+                        className={`p-1 rounded-md cursor-pointer transition ${
+                          isWatchlisted ? "text-amber-400 hover:text-amber-300" : "text-gray-600 hover:text-gray-300"
                         }`}
+                        title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
                       >
-                        {isWatchlisted
-                          ? SEARCH_WATCHLIST_ICONS.active
-                          : SEARCH_WATCHLIST_ICONS.inactive}
+                        <BookmarkIcon
+                          filled={isWatchlisted}
+                          className={`w-4 h-4 ${isWatchlisted ? "text-amber-400" : "text-gray-500 hover:text-gray-300"}`}
+                        />
                       </button>
                     )}
                     <div>
@@ -144,7 +175,7 @@ const SearchCommandPalette = ({
 
         {/* Footer info */}
         <div className="px-4 py-2.5 bg-[#0b1018] border-t border-[#1a2536] flex items-center justify-between text-[11px] text-gray-500">
-          <span>{SEARCH_PALETTE_CONFIG.footerSource}</span>
+          <span>Real-time NSE/BSE &amp; Global Market Equities</span>
           <span>{SEARCH_PALETTE_CONFIG.footerHint}</span>
         </div>
       </div>

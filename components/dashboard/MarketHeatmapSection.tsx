@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { heatmapQueryOptions } from "@/queries/heatmap";
 import type {
   HeatmapStock,
   HeatmapSector,
@@ -30,25 +31,13 @@ export const MarketHeatmapSection: React.FC<MarketHeatmapSectionProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch real market heatmap from API route
+  // Fetch real market heatmap from API route via centralized query options
   const {
     data: heatmapData,
     isLoading,
     isError,
     refetch,
-  } = useQuery<MarketHeatmapResponse>({
-    queryKey: ["market-heatmap"],
-    queryFn: async () => {
-      const res = await fetch("/api/market/heatmap");
-      if (!res.ok) {
-        throw new Error("Failed to load real market heatmap data.");
-      }
-      return res.json();
-    },
-    staleTime: 60000,
-    refetchInterval: 60000,
-    refetchOnWindowFocus: false,
-  });
+  } = useQuery<MarketHeatmapResponse>(heatmapQueryOptions());
 
   const sectors = heatmapData?.sectors || [];
   const topSectorLeaders = heatmapData?.topSectorLeaders || [];

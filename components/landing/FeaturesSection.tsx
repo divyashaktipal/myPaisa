@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { financeQueryOptions } from "@/queries/finance";
 import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
 import type {
   LiveIndexData,
@@ -36,22 +37,8 @@ const FeaturesSection = (_props: FeaturesSectionProps = {}) => {
   // 4. Dynamic Screener Filter Selector
   const [activeFilter, setActiveFilter] = useState<string>(SCREENER_FILTER_OPTIONS[0]);
 
-  // TanStack React Query: Shared cached NIFTY 50 live feed with DashboardPage
-  const { data: nifityFinanceData } = useQuery<FinanceApiResponse | null>({
-    queryKey: ["finance", "NIFTY 50", "1D"],
-    queryFn: async () => {
-      const res = await fetch("/api/finance?symbol=NIFTY%2050&window=1D");
-      if (!res?.ok) {
-        console.warn(`FeaturesSection live feed received HTTP status ${res?.status}`);
-        return null;
-      }
-      return (await res.json()) as FinanceApiResponse;
-    },
-    staleTime: QUERY_CLIENT_CONFIG?.liveWindowStaleTime ?? 180000,
-    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
+  // TanStack React Query: Shared cached NIFTY 50 live feed with DashboardPage via centralized query options
+  const { data: nifityFinanceData } = useQuery(financeQueryOptions("NIFTY 50", "1D"));
 
   useEffect(() => {
     if (!nifityFinanceData || nifityFinanceData?.price == null) return;

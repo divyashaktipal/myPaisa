@@ -3,16 +3,17 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { financeQueryOptions } from "@/queries/finance";
 import {
   StatusBanner,
   CandlestickChart,
-  TanStackStockChart,
   CompanyDetailsCard,
   StockNewsSection,
   useDashboard,
   InvestmentQuotesLoading,
 } from "@/components/dashboard";
 import type { FinanceApiResponse, DashboardErrorState } from "@/types/DashboardPage";
+import type { ChartStat } from "@/types/IndexChartCard";
 import {
   DEFAULT_CHART_STOCK_SYMBOL,
   DASHBOARD_API_ROUTES,
@@ -37,7 +38,6 @@ const ChartContent = ({ symbolProp }: ChartContentProps) => {
 
   const [selectedStock, setSelectedStock] = useState<string>(initialStock);
   const [selectedWindow, setSelectedWindow] = useState<string>("1D");
-  const [chartEngine, setChartEngine] = useState<"tanstack" | "candlestick">("tanstack");
   const [dismissedErrorKey, setDismissedErrorKey] = useState<string | null>(null);
 
   // Sync if query param or symbolProp changes
@@ -50,57 +50,48 @@ const ChartContent = ({ symbolProp }: ChartContentProps) => {
 
   const currentErrorKey = `${selectedStock}-${selectedWindow}`;
 
-  // TanStack React Query: Dynamic caching for Stock Candlestick Chart & Fundamentals
+  // TanStack React Query: Dynamic caching with keepPreviousData via centralized query options
   const {
     data: financeData,
     isLoading: isFinanceLoading,
+    isFetching: isFinanceFetching,
     error: financeQueryError,
     refetch: refetchFinance,
-  } = useQuery<FinanceApiResponse, DashboardErrorState>({
-    queryKey: ["finance", selectedStock, selectedWindow],
-    queryFn: async () => {
-      const res = await fetch(
-        `${DASHBOARD_API_ROUTES.finance}?symbol=${encodeURIComponent(selectedStock)}&window=${encodeURIComponent(selectedWindow)}`
-      );
+  } = useQuery<FinanceApiResponse, DashboardErrorState>(
+    financeQueryOptions(selectedStock, selectedWindow)
+  );
 
-      if (res?.ok) {
-        return (await res.json()) as FinanceApiResponse;
-      }
+  // Retain company details across window changes so the right panel never disappears
+  const lastKnownAboutRef = React.useRef<{
+    [symbol: string]: {
+      aboutSnippet?: string | null;
+      aboutLink?: string | null;
+      aboutInfo?: Array<{ title?: string; value?: string }>;
+      stats?: ChartStat[];
+      title?: string | null;
+      exchange?: string | null;
+    };
+  }>({});
 
-      const status = res?.status ?? 500;
-      let errorMessage = DASHBOARD_ERROR_MESSAGES[status] || DASHBOARD_FALLBACK_ERROR;
-
-      try {
-        const errorJson = await res.json();
-        if (errorJson?.error && typeof errorJson?.error === "string") {
-          errorMessage = errorJson.error;
-        }
-      } catch {
-        // Fall back to status message
-      }
-
-      const customError: DashboardErrorState = {
-        statusCode: status,
-        message: errorMessage,
+  if (financeData?.symbol) {
+    const sym = financeData.symbol.toUpperCase();
+    const currSnippet = financeData.aboutDetails?.snippet || financeData.about;
+    const currStats = financeData.aboutDetails?.stats || financeData.stats;
+    if (currSnippet || (currStats && currStats.length > 0)) {
+      lastKnownAboutRef.current[sym] = {
+        aboutSnippet: currSnippet,
+        aboutLink: financeData.aboutDetails?.link,
+        aboutInfo: financeData.aboutDetails?.info,
+        stats: currStats,
+        title: financeData.title || financeData.aboutDetails?.title,
+        exchange: financeData.exchange,
       };
-      throw customError;
-    },
-    staleTime:
-      selectedWindow === "1D"
-        ? (QUERY_CLIENT_CONFIG?.liveWindowStaleTime ?? 180000)
-        : (QUERY_CLIENT_CONFIG?.historicalWindowStaleTime ?? 900000),
-    gcTime: QUERY_CLIENT_CONFIG?.defaultGcTime ?? 3600000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: (failureCount, err) => {
-      if (err?.statusCode && (err.statusCode === 400 || err.statusCode === 404)) {
-        return false;
-      }
-      return failureCount < 1;
-    },
-  });
+    }
+  }
 
-  const loading = isFinanceLoading;
+  const cachedAbout = lastKnownAboutRef.current[(financeData?.symbol || selectedStock).toUpperCase()];
+  const isInitialLoading = isFinanceLoading && !financeData;
+  const isUpdatingData = isFinanceLoading || isFinanceFetching;
   const errorState = dismissedErrorKey === currentErrorKey ? null : (financeQueryError ?? null);
 
   return (
@@ -145,124 +136,63 @@ const ChartContent = ({ symbolProp }: ChartContentProps) => {
         </div>
       )}
 
-      {/* Top Return to Live Heatmap Toolbar & Engine Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#080d16] border border-[#152236] rounded-2xl p-3 px-4 shadow-lg">
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard/live")}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121c2c] hover:bg-[#1a283e] text-emerald-400 hover:text-emerald-300 border border-[#1e2f48] text-xs font-semibold transition cursor-pointer"
-          >
-            <span>← Back</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Chart Engine Selector */}
-          <div className="flex items-center gap-1 bg-[#05080e] p-1 rounded-xl border border-[#141e2e]">
-            <button
-              type="button"
-              onClick={() => setChartEngine("tanstack")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${chartEngine === "tanstack"
-                ? "bg-[#182638] text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
-                }`}
-            >
-              TanStack Chart
-            </button>
-            <button
-              type="button"
-              onClick={() => setChartEngine("candlestick")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${chartEngine === "candlestick"
-                ? "bg-[#182638] text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-200"
-                }`}
-            >
-              Candlestick
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={openSearch}
-            className="px-3 py-1.5 rounded-xl bg-[#0e1624] hover:bg-[#141f30] text-gray-300 text-xs border border-[#1b273a] transition cursor-pointer"
-          >
-            Search (⌘K)
-          </button>
-        </div>
+      {/* Top Navigation & Global Search Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/live")}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121c2c] hover:bg-[#1a283e] text-emerald-400 hover:text-emerald-300 border border-[#1e2f48] text-xs font-semibold transition cursor-pointer"
+        >
+          <span>← Back</span>
+        </button>
       </div>
-
-      {/* Real Live Timestamp Banner */}
-      {financeData?.date && (
-        <StatusBanner
-          statusText={`${STATUS_BANNER_LABELS.liveFeedPrefix}${financeData?.title || selectedStock}`}
-          timestamp={`${STATUS_BANNER_LABELS.dataAsOfPrefix}${financeData?.date}`}
-        />
-      )}
 
       {/* Stock Chart (Left) + Company Basic Details (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Interactive Stock Chart */}
+        {/* Left Column: Interactive Candlestick Stock Chart */}
         <div className="lg:col-span-8">
-          {chartEngine === "tanstack" ? (
-            <TanStackStockChart
-              stock={{
-                symbol: financeData?.symbol || selectedStock,
-                name: financeData?.title || financeData?.aboutDetails?.title || selectedStock,
-                slug: (financeData?.symbol || selectedStock).toLowerCase(),
-                price: financeData?.price ?? 0,
-                change: financeData?.movementValue ?? 0,
-                changePercent: financeData?.changePercent ?? 0,
-                turnoverCr: Math.round(((financeData?.price ?? 0) * 2000000) / 10000000),
-                volume: 2000000,
-                sector: financeData?.aboutDetails?.exchange || "NSE",
-              }}
-              selectedWindow={selectedWindow}
-              onSelectWindow={setSelectedWindow}
-            />
-          ) : (
-            <CandlestickChart
-              symbol={financeData?.symbol || selectedStock}
-              title={financeData?.title || financeData?.aboutDetails?.title}
-              exchange={financeData?.exchange}
-              price={financeData?.price ?? null}
-              changePercent={financeData?.changePercent ?? null}
-              movement={financeData?.movement ?? null}
-              movementValue={financeData?.movementValue ?? null}
-              date={financeData?.date ?? null}
-              chartPoints={financeData?.chartPoints ?? []}
-              selectedWindow={selectedWindow}
-              setSelectedWindow={setSelectedWindow}
-              loading={loading}
-              onBackToIndices={() => router.push("/dashboard/live")}
-            />
-          )}
+          <CandlestickChart
+            symbol={financeData?.symbol || selectedStock}
+            title={financeData?.title || financeData?.aboutDetails?.title || cachedAbout?.title}
+            exchange={financeData?.exchange || cachedAbout?.exchange}
+            price={financeData?.price ?? null}
+            changePercent={financeData?.changePercent ?? null}
+            movement={financeData?.movement ?? null}
+            movementValue={financeData?.movementValue ?? null}
+            date={financeData?.date ?? null}
+            chartPoints={financeData?.chartPoints ?? []}
+            stats={financeData?.stats || cachedAbout?.stats || []}
+            selectedWindow={selectedWindow}
+            setSelectedWindow={setSelectedWindow}
+            loading={isUpdatingData}
+            onBackToIndices={() => router.push("/dashboard/live")}
+          />
         </div>
 
         {/* Right Column: Company Basic Details from SerpApi Knowledge Graph */}
         <div className="lg:col-span-4">
           <CompanyDetailsCard
             symbol={financeData?.symbol || selectedStock}
-            title={financeData?.title || financeData?.aboutDetails?.title}
-            exchange={financeData?.exchange}
+            title={financeData?.title || financeData?.aboutDetails?.title || cachedAbout?.title}
+            exchange={financeData?.exchange || cachedAbout?.exchange}
             price={financeData?.price ?? null}
             changePercent={financeData?.changePercent ?? null}
-            aboutSnippet={financeData?.aboutDetails?.snippet || financeData?.about}
-            aboutLink={financeData?.aboutDetails?.link}
-            aboutInfo={financeData?.aboutDetails?.info}
-            stats={financeData?.aboutDetails?.stats || financeData?.stats}
+            aboutSnippet={financeData?.aboutDetails?.snippet || financeData?.about || cachedAbout?.aboutSnippet}
+            aboutLink={financeData?.aboutDetails?.link || cachedAbout?.aboutLink}
+            aboutInfo={financeData?.aboutDetails?.info || cachedAbout?.aboutInfo}
+            stats={financeData?.aboutDetails?.stats || financeData?.stats || cachedAbout?.stats}
             isInWatchlist={watchlist.includes(financeData?.symbol || selectedStock)}
             onToggleWatchlist={toggleWatchlist}
-            loading={loading}
+            loading={isInitialLoading}
           />
         </div>
       </div>
 
       {/* Real Company News Terminal with Trending, Sector Moves, and Summaries */}
-      {financeData && (
+      {(financeData || cachedAbout) && (
         <StockNewsSection
           symbol={financeData?.symbol || selectedStock}
-          title={financeData?.title || financeData?.aboutDetails?.title}
+          title={financeData?.title || financeData?.aboutDetails?.title || cachedAbout?.title}
           news={financeData?.news}
           related={financeData?.related}
         />

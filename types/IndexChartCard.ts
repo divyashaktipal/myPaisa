@@ -6,6 +6,7 @@ export interface IndexTabItem {
 export interface ChartPoint {
   time: string;
   price: number;
+  volume?: number;
 }
 
 export interface ChartStat {
@@ -18,6 +19,7 @@ export interface HoveredChartPoint {
   price: number;
   x: number;
   y: number;
+  volume?: number;
 }
 
 export interface ChartDimensions {

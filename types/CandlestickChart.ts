@@ -1,3 +1,5 @@
+import type { ChartStat } from "./IndexChartCard";
+
 export interface CandleData {
   time: string;
   open: number;
@@ -7,6 +9,7 @@ export interface CandleData {
   isBullish: boolean;
   changePercent: number;
   index: number;
+  volume?: number;
 }
 
 export interface HoveredCandle {
@@ -52,7 +55,8 @@ export interface CandlestickChartProps {
   movement?: "Up" | "Down" | null;
   movementValue?: number | null;
   date?: string | null;
-  chartPoints?: Array<{ time: string; price: number }>;
+  chartPoints?: Array<{ time: string; price: number; volume?: number }>;
+  stats?: ChartStat[];
   selectedWindow: string;
   setSelectedWindow: (window: string) => void;
   loading?: boolean;

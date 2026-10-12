@@ -16,10 +16,10 @@ export default async function DashboardLayout({
     redirect(DASHBOARD_ROUTE_PAGE_CONFIG.unauthenticatedRedirect);
   }
 
-  // Safe client representation: strictly prevent personal email or sensitive PII from leaking to client DOM
+  // User representation for client shell
   const user = {
     name: session.user.name || "Member",
-    email: null,
+    email: session.user.email || null,
     image: session.user.image || null,
   };
 

@@ -218,7 +218,7 @@ export const HEATMAP_TEXT_CONFIG = {
   allTabLabel: "All Stocks",
   topSectorTabLabel: "Top in Each Sector",
   filterSectorsPlaceholder: "All Sectors",
-  viewChartCta: "Click to view TanStack chart",
+  viewChartCta: "Click to view stock chart",
   liveBadgeText: "Real-time NSE/BSE",
   currencySymbol: "₹",
   croreSuffix: "Cr",
