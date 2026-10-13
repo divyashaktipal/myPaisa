@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import type { StockNewsSectionProps, StockNewsTab } from "@/types/StockNewsSection";
 import type { SerpApiNewsItem } from "@/types/serpapi";
@@ -15,8 +15,22 @@ const StockNewsSection = ({
   news = [],
 }: StockNewsSectionProps) => {
   const [activeTab, setActiveTab] = useState<StockNewsTab>("trending");
+  const [mobileSectorVisibleCount, setMobileSectorVisibleCount] = useState<number>(8);
+  const [isLoadingMoreSector, setIsLoadingMoreSector] = useState(false);
   const hasNews = news.length > 0;
   const displaySymbol = symbol?.toUpperCase() || "STOCK";
+
+  useEffect(() => {
+    setMobileSectorVisibleCount(8);
+  }, [activeTab, symbol]);
+
+  const handleLoadMoreSector = () => {
+    setIsLoadingMoreSector(true);
+    setTimeout(() => {
+      setMobileSectorVisibleCount((prev) => prev + 8);
+      setIsLoadingMoreSector(false);
+    }, 250);
+  };
 
   // Dynamically derive sector moves from TOP_200_INDIAN_STOCKS without hardcoded data
   const sectorMoves = useMemo(() => {
@@ -112,7 +126,12 @@ const StockNewsSection = ({
             {hasNews ? (
               news.map((item, idx) => {
                 const headline = item.title || item.snippet || "Financial news update";
-                const summary = item.snippet && item.snippet !== item.title ? item.snippet : (item.snippet || "");
+                const summary =
+                  item.summary && item.summary !== headline
+                    ? item.summary
+                    : item.snippet && item.snippet !== headline
+                    ? item.snippet
+                    : item.summary || "";
 
                 return (
                   <div
@@ -190,57 +209,113 @@ const StockNewsSection = ({
       )}
 
       {/* Tab 2: Sector Moves Cards Grid */}
-      {activeTab === "sector" && (
-        <div className="mt-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-2.5 sm:gap-3">
-            {sectorMoves.map((sector) => {
-              const isPositive = sector.changePercent >= 0;
-              return (
-                <div
-                  key={sector.id}
-                  className={`rounded-xl p-3 sm:p-3.5 border transition flex flex-col justify-between ${
-                    isPositive
-                      ? "bg-[#0d161a] border-[#152e28] hover:border-emerald-600/60"
-                      : "bg-[#160f15] border-[#291720] hover:border-rose-900/60"
-                  }`}
-                >
-                  {/* Row 1: Sector Name & Percentage Change */}
-                  <div className="flex items-baseline justify-between gap-1.5">
-                    <span
-                      title={sector.name}
-                      className="text-xs sm:text-[13px] font-bold text-gray-100 truncate"
-                    >
-                      {sector.name}
-                    </span>
-                    <span
-                      className={`text-xs sm:text-[13px] font-mono font-bold shrink-0 ${
-                        isPositive ? "text-emerald-400" : "text-rose-400"
-                      }`}
-                    >
-                      {isPositive ? "+" : ""}
-                      {sector.changePercent.toFixed(2)}%
-                    </span>
-                  </div>
+      {activeTab === "sector" && (() => {
+        const hasMoreMobile = mobileSectorVisibleCount < sectorMoves.length;
 
-                  {/* Row 2: Advance / Decline Counts & Best Stock Link */}
-                  <div className="mt-2 text-[11px] text-gray-400 flex items-center flex-wrap gap-1 leading-tight">
-                    <span>
-                      {sector.upCount} up · {sector.downCount} down of {sector.totalCount} · best
-                    </span>
-                    <Link
-                      href={`/dashboard/chart?symbol=${encodeURIComponent(sector.bestStock)}`}
-                      className="font-mono text-gray-200 underline hover:text-emerald-400 transition font-medium"
-                      title={`Open ${sector.bestStock} chart`}
-                    >
-                      {sector.bestStock}
-                    </Link>
+        return (
+          <div className="mt-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-2.5 sm:gap-3">
+              {sectorMoves.map((sector, index) => {
+                const isPositive = sector.changePercent >= 0;
+                const isHiddenOnMobile = index >= mobileSectorVisibleCount;
+
+                return (
+                  <div
+                    key={sector.id}
+                    className={`rounded-xl p-3 sm:p-3.5 border transition flex flex-col justify-between ${
+                      isHiddenOnMobile ? "hidden sm:flex" : "flex"
+                    } ${
+                      isPositive
+                        ? "bg-[#0d161a] border-[#152e28] hover:border-emerald-600/60"
+                        : "bg-[#160f15] border-[#291720] hover:border-rose-900/60"
+                    }`}
+                  >
+                    {/* Row 1: Sector Name & Percentage Change */}
+                    <div className="flex items-baseline justify-between gap-1.5">
+                      <span
+                        title={sector.name}
+                        className="text-xs sm:text-[13px] font-bold text-gray-100 truncate"
+                      >
+                        {sector.name}
+                      </span>
+                      <span
+                        className={`text-xs sm:text-[13px] font-mono font-bold shrink-0 ${
+                          isPositive ? "text-emerald-400" : "text-rose-400"
+                        }`}
+                      >
+                        {isPositive ? "+" : ""}
+                        {sector.changePercent.toFixed(2)}%
+                      </span>
+                    </div>
+
+                    {/* Row 2: Advance / Decline Counts & Best Stock Link */}
+                    <div className="mt-2 text-[11px] text-gray-400 flex items-center flex-wrap gap-1 leading-tight">
+                      <span>
+                        {sector.upCount} up · {sector.downCount} down of {sector.totalCount} · best
+                      </span>
+                      <Link
+                        href={`/dashboard/chart?symbol=${encodeURIComponent(sector.bestStock)}`}
+                        className="font-mono text-gray-200 underline hover:text-emerald-400 transition font-medium"
+                        title={`Open ${sector.bestStock} chart`}
+                      >
+                        {sector.bestStock}
+                      </Link>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+
+            {/* Mobile Load More Controls (Only shown on mobile viewports < sm) */}
+            <div className="mt-4 pt-3 border-t border-[#131d2c] flex sm:hidden flex-col items-center justify-center gap-2">
+              {hasMoreMobile ? (
+                <button
+                  type="button"
+                  onClick={handleLoadMoreSector}
+                  disabled={isLoadingMoreSector}
+                  className="w-full py-2.5 px-4 rounded-xl border border-[#1e2e44] bg-[#0c1422] hover:bg-[#142136] active:bg-[#182842] text-emerald-400 hover:text-emerald-300 font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition cursor-pointer shadow-md"
+                  aria-label="Load more sectors"
+                >
+                  {isLoadingMoreSector ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                      <span>Loading next 8 cards...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Load More</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-300 font-mono font-bold">
+                        +{Math.min(8, sectorMoves.length - mobileSectorVisibleCount)}
+                      </span>
+                    </>
+                  )}
+                </button>
+              ) : sectorMoves.length > 8 ? (
+                <div className="flex items-center justify-between w-full text-xs font-mono text-gray-500">
+                  <span>All {sectorMoves.length} sectors loaded</span>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSectorVisibleCount(8)}
+                    className="text-gray-400 hover:text-white underline cursor-pointer text-[11px]"
+                  >
+                    Show less
+                  </button>
                 </div>
-              );
-            })}
+              ) : null}
+
+              {hasMoreMobile && (
+                <span className="text-[11px] font-mono text-gray-400">
+                  Showing{" "}
+                  <span className="text-white font-semibold">
+                    {Math.min(mobileSectorVisibleCount, sectorMoves.length)}
+                  </span>{" "}
+                  of <span className="text-white font-semibold">{sectorMoves.length}</span> sectors
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

@@ -135,12 +135,39 @@ export async function GET(req: Request) {
     const aboutLinkText = aboutFirst?.description?.link_text || null;
     const aboutInfo = aboutFirst?.info || [];
     const currency = summary?.currency || "INR";
-    const enrichedNews = rawNews.map((item) => ({
-      ...item,
+    const newsForSummary = rawNews.slice(0, 8).map((item) => ({
       title: item?.title || item?.snippet || "Market update",
-      snippet: item?.snippet || item?.title || "",
-      summary: item?.snippet || item?.title || "",
+      source: item?.source || "Market Wire",
+      snippet: item?.snippet && item?.snippet !== item?.title ? item.snippet : "",
     }));
+
+    let generatedSummaries: string[] = [];
+    if (newsForSummary.length > 0) {
+      try {
+        generatedSummaries = await batchGenerateGeminiSummaries(newsForSummary);
+      } catch (sumErr) {
+        console.warn("Batch summary generation in /api/finance skipped:", sumErr);
+      }
+    }
+
+    const enrichedNews = rawNews.map((item, idx) => {
+      const title = item?.title || item?.snippet || "Market update";
+      const snippet = item?.snippet || "";
+      const aiSummary = generatedSummaries[idx];
+      const summary =
+        aiSummary && aiSummary !== title
+          ? aiSummary
+          : snippet && snippet !== title
+          ? snippet
+          : "";
+
+      return {
+        ...item,
+        title,
+        snippet,
+        summary,
+      };
+    });
 
     const aboutDetails = {
       title: aboutTitle,

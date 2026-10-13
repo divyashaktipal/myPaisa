@@ -11,6 +11,21 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
   onSelectStock,
 }) => {
   const [filterMode, setFilterMode] = useState<"all" | "gainers" | "losers">("all");
+  const [mobileVisibleCount, setMobileVisibleCount] = useState<number>(8);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const handleFilterChange = (mode: "all" | "gainers" | "losers") => {
+    setFilterMode(mode);
+    setMobileVisibleCount(8);
+  };
+
+  const handleLoadMore = () => {
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setMobileVisibleCount((prev) => prev + 8);
+      setIsLoadingMore(false);
+    }, 250);
+  };
 
   // Derive aggregate sector metrics dynamically from the 200 constituents
   const { sectorList, gainingCount, losingCount } = useMemo(() => {
@@ -81,6 +96,8 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
     return sectorList;
   }, [sectorList, filterMode]);
 
+  const hasMoreMobile = mobileVisibleCount < displayedSectors.length;
+
   return (
     <section
       className={`w-full rounded-3xl bg-[#080d16] border border-[#152236] p-5 sm:p-7 shadow-2xl transition-all ${className}`}
@@ -112,7 +129,7 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
         <div className="flex items-center bg-[#050910] p-1 rounded-xl border border-[#152132] self-start sm:self-auto shrink-0">
           <button
             type="button"
-            onClick={() => setFilterMode("all")}
+            onClick={() => handleFilterChange("all")}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
               filterMode === "all"
                 ? "bg-[#182638] text-white shadow-sm"
@@ -123,7 +140,7 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setFilterMode("gainers")}
+            onClick={() => handleFilterChange("gainers")}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
               filterMode === "gainers"
                 ? "bg-[#182638] text-emerald-400 shadow-sm"
@@ -134,7 +151,7 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setFilterMode("losers")}
+            onClick={() => handleFilterChange("losers")}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
               filterMode === "losers"
                 ? "bg-[#182638] text-rose-400 shadow-sm"
@@ -148,14 +165,17 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
 
       {/* Grid of Sector Cards */}
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-3 sm:gap-3.5">
-        {displayedSectors.map((sector) => {
+        {displayedSectors.map((sector, index) => {
           const isPositive = sector.changePercent >= 0;
           const advanceRatio = sector.totalCount > 0 ? (sector.upCount / sector.totalCount) * 100 : 50;
+          const isHiddenOnMobile = index >= mobileVisibleCount;
 
           return (
             <div
               key={sector.id}
-              className={`rounded-2xl p-4 border transition duration-200 flex flex-col justify-between gap-3 group shadow-lg ${
+              className={`rounded-2xl p-4 border transition duration-200 flex-col justify-between gap-3 group shadow-lg ${
+                isHiddenOnMobile ? "hidden sm:flex" : "flex"
+              } ${
                 isPositive
                   ? "bg-gradient-to-br from-[#0c1619] to-[#070e13] border-[#152d26] hover:border-emerald-500/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]"
                   : "bg-gradient-to-br from-[#160f15] to-[#0d0910] border-[#291720] hover:border-rose-500/50 hover:shadow-[0_0_20px_rgba(244,63,94,0.1)]"
@@ -231,6 +251,54 @@ export const SectorMovesSection: React.FC<SectorMovesSectionProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Mobile Load More Controls (Only shown on mobile viewports < sm) */}
+      <div className="mt-4 pt-3 border-t border-[#131d2c] flex sm:hidden flex-col items-center justify-center gap-2">
+        {hasMoreMobile ? (
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+            className="w-full py-2.5 px-4 rounded-xl border border-[#1e2e44] bg-[#0c1422] hover:bg-[#142136] active:bg-[#182842] text-emerald-400 hover:text-emerald-300 font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition cursor-pointer shadow-md"
+            aria-label="Load more sectors"
+          >
+            {isLoadingMore ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                <span>Loading next 8 cards...</span>
+              </>
+            ) : (
+              <>
+                <span>Load More</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-300 font-mono font-bold">
+                  +{Math.min(8, displayedSectors.length - mobileVisibleCount)}
+                </span>
+              </>
+            )}
+          </button>
+        ) : displayedSectors.length > 8 ? (
+          <div className="flex items-center justify-between w-full text-xs font-mono text-gray-500">
+            <span>All {displayedSectors.length} sectors loaded</span>
+            <button
+              type="button"
+              onClick={() => setMobileVisibleCount(8)}
+              className="text-gray-400 hover:text-white underline cursor-pointer text-[11px]"
+            >
+              Show less
+            </button>
+          </div>
+        ) : null}
+
+        {hasMoreMobile && (
+          <span className="text-[11px] font-mono text-gray-400">
+            Showing{" "}
+            <span className="text-white font-semibold">
+              {Math.min(mobileVisibleCount, displayedSectors.length)}
+            </span>{" "}
+            of <span className="text-white font-semibold">{displayedSectors.length}</span> sectors
+          </span>
+        )}
       </div>
     </section>
   );

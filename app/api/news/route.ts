@@ -3,6 +3,7 @@ import { serp, normalizeGoogleFinanceSymbol } from "@/lib/serpapi";
 import type { SerpApiFinanceResponse } from "@/lib/serpapi";
 import type { NewsStoryItem, MarketNewsResponse } from "@/types/MarketNews";
 import { auth } from "@/auth";
+import { batchGenerateGeminiSummaries } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
 
@@ -132,12 +133,30 @@ export async function GET(req: Request) {
     }
 
     if (rawNews.length > 0) {
+      const newsForSummary = rawNews.slice(0, 8).map((item) => ({
+        title: item.title || item.snippet || "Market update",
+        source: item.source || "Financial Wire",
+        snippet: item.snippet && item.snippet !== item.title ? item.snippet : "",
+      }));
+
+      let generatedSummaries: string[] = [];
+      try {
+        generatedSummaries = await batchGenerateGeminiSummaries(newsForSummary);
+      } catch (sumErr) {
+        console.warn("Batch summary generation in /api/news skipped:", sumErr);
+      }
+
       const liveStories: NewsStoryItem[] = rawNews.map((item, idx) => {
         const title = item.title || item.snippet || "Market update";
         const source = item.source || "Financial Wire";
         const tickers = query ? [query.toUpperCase()] : extractTickers(title);
-        // Use real publisher snippet directly from news_results without manual templates
-        const summary = item.snippet || item.title || "";
+        const aiSummary = generatedSummaries[idx];
+        const summary =
+          aiSummary && aiSummary !== title
+            ? aiSummary
+            : item.snippet && item.snippet !== title
+            ? item.snippet
+            : "";
 
         return {
           id: `news-${idx}-${Date.now()}`,

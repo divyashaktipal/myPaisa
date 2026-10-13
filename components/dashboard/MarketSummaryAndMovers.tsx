@@ -85,7 +85,12 @@ const MarketSummaryAndMovers = ({
             </h3>
             {news?.map?.((item, idx) => {
               const headline = item?.title || item?.snippet || "Market update";
-              const summaryText = item?.snippet && item?.snippet !== item?.title ? item?.snippet : "";
+              const summaryText =
+                item?.summary && item?.summary !== headline
+                  ? item?.summary
+                  : item?.snippet && item?.snippet !== headline
+                  ? item?.snippet
+                  : "";
               const thumb = item?.thumbnail;
 
               return (

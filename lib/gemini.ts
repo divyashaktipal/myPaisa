@@ -16,8 +16,17 @@ function getAIClient(): GoogleGenAI | null {
   return aiClientInstance;
 }
 
+const CANDIDATE_MODELS = Array.from(
+  new Set([
+    env.GEMINI_MODEL || "gemini-3.5-flash",
+    "gemini-3.5-flash",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
+  ])
+);
+
 /**
- * Generate a single financial market news summary using Google GenAI SDK (gemini-3.8-flash).
+ * Generate a single financial market news summary using Google GenAI SDK with automatic model fallback.
  */
 export async function generateGeminiSummary(
   headline: string,
@@ -35,8 +44,6 @@ export async function generateGeminiSummary(
     return snippet || `${headline} (${source})`;
   }
 
-  const model = env.GEMINI_MODEL || "gemini-3.8-flash";
-
   const prompt = `You are a financial analyst covering the Indian stock market (NSE / BSE).
 Write a factual, professional 1 to 2 sentence summary of this news item highlighting its market significance and corporate impact.
 Do NOT use markdown headers, asterisks, or conversational filler. Return only the plain summary text.
@@ -45,23 +52,25 @@ Headline: ${headline}
 Publisher: ${source}
 Context: ${snippet}`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        temperature: 0.2,
-        maxOutputTokens: 150,
-      },
-    });
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          temperature: 0.2,
+          maxOutputTokens: 150,
+        },
+      });
 
-    const generatedText = response.text?.trim?.();
-    if (generatedText) {
-      summaryCache.set(cacheKey, { summary: generatedText, timestamp: Date.now() });
-      return generatedText;
+      const generatedText = response.text?.trim?.();
+      if (generatedText) {
+        summaryCache.set(cacheKey, { summary: generatedText, timestamp: Date.now() });
+        return generatedText;
+      }
+    } catch (err) {
+      console.warn(`[Gemini SDK] Summary generation warning (${model}):`, err);
     }
-  } catch (err) {
-    console.warn(`[Gemini SDK] Summary generation warning (${model}):`, err);
   }
 
   return snippet || `${headline} (${source})`;
@@ -96,8 +105,6 @@ export async function batchGenerateGeminiSummaries(
     return results as string[];
   }
 
-  const model = env.GEMINI_MODEL || "gemini-3.8-flash";
-
   const promptItems = missingIndices
     .map(
       (idx, pos) =>
@@ -111,42 +118,44 @@ Return ONLY a valid JSON array of strings in the exact same numerical order, wit
 Items:
 ${promptItems}`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        temperature: 0.2,
-        maxOutputTokens: 800,
-        responseMimeType: "application/json",
-      },
-    });
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          temperature: 0.2,
+          maxOutputTokens: 800,
+          responseMimeType: "application/json",
+        },
+      });
 
-    const rawText = response.text?.trim?.();
-    if (rawText) {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(rawText);
-      } catch {
-        const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        parsed = JSON.parse(cleaned);
-      }
+      const rawText = response.text?.trim?.();
+      if (rawText) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(rawText);
+        } catch {
+          const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          parsed = JSON.parse(cleaned);
+        }
 
-      if (Array.isArray(parsed)) {
-        missingIndices.forEach((origIdx, pos) => {
-          const sum =
-            typeof parsed[pos] === "string"
-              ? parsed[pos].trim()
-              : items[origIdx].snippet || items[origIdx].title;
-          results[origIdx] = sum;
-          const cacheKey = `${items[origIdx].title.trim().toLowerCase()}::${items[origIdx].source.trim().toLowerCase()}`;
-          summaryCache.set(cacheKey, { summary: sum, timestamp: Date.now() });
-        });
-        return results as string[];
+        if (Array.isArray(parsed)) {
+          missingIndices.forEach((origIdx, pos) => {
+            const sum =
+              typeof parsed[pos] === "string"
+                ? parsed[pos].trim()
+                : items[origIdx].snippet || items[origIdx].title;
+            results[origIdx] = sum;
+            const cacheKey = `${items[origIdx].title.trim().toLowerCase()}::${items[origIdx].source.trim().toLowerCase()}`;
+            summaryCache.set(cacheKey, { summary: sum, timestamp: Date.now() });
+          });
+          return results as string[];
+        }
       }
+    } catch (err) {
+      console.warn(`[Gemini SDK] Batch summarization warning (${model}):`, err);
     }
-  } catch (err) {
-    console.warn(`[Gemini SDK] Batch summarization warning (${model}):`, err);
   }
 
   // If batch call failed or was rate-limited (429), fall back gracefully to item snippets
