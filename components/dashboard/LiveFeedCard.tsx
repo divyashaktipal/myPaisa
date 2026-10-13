@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useId } from "react";
+import React, { useState, useMemo, useId, useRef, useCallback, useEffect } from "react";
 import type { LiveFeedCardProps } from "@/types/LiveFeedCard";
 import type { MoverTab, MoverIndex } from "@/types/MarketSummaryAndMovers";
 import { TOP_200_INDIAN_STOCKS } from "@/lib/top200Stocks";
@@ -43,6 +43,14 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
   const gradientId = useId();
   const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint | null>(null);
   const [moverTab, setMoverTab] = useState<MoverTab>("gainers");
+
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isInteractingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    setHoveredPoint(null);
+  }, [selectedIndex, selectedWindow]);
 
   // Determine active mover index (Nifty 50, 100, or 200)
   const activeMoverIndex: MoverIndex =
@@ -246,6 +254,69 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
   const currentChangeDisplay = changePercent ?? 1.30;
   const currentDateDisplay = date ?? "9 Oct 2026";
 
+  const updateHoverFromClientX = useCallback(
+    (clientX: number) => {
+      if (!coords || coords.length === 0 || !chartContainerRef.current) return;
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
+      const offsetX = clientX - rect.left;
+      const svgX = (offsetX / rect.width) * width;
+      const clampedSvgX = Math.max(0, Math.min(chartWidth, svgX));
+      const ratio = clampedSvgX / chartWidth;
+      const idx = Math.min(
+        coords.length - 1,
+        Math.max(0, Math.round(ratio * (coords.length - 1)))
+      );
+      const pt = coords[idx];
+      if (pt) {
+        setHoveredPoint({
+          time: pt.time,
+          price: pt.price,
+          x: pt.x,
+          y: pt.y,
+          volume: pt.volume,
+        });
+      }
+    },
+    [coords, width, chartWidth]
+  );
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      isInteractingRef.current = true;
+      updateHoverFromClientX(touch.clientX);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0 && touchStartRef.current) {
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+      const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+
+      if (dx > dy || isInteractingRef.current) {
+        if (e.cancelable) e.preventDefault();
+        updateHoverFromClientX(touch.clientX);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    isInteractingRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    updateHoverFromClientX(e.clientX);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredPoint(null);
+  };
+
   return (
     <div
       className={`w-full rounded-2xl bg-[#090e17] border border-[#141e2d] p-5 sm:p-7 shadow-2xl text-white ${className}`}
@@ -330,13 +401,21 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
       </div>
 
       {/* 4. THE CHART IN ANOTHER DIV TO DIFFERENTIATE */}
-      <div className="my-6 relative w-full rounded-2xl bg-[#060a12]/80 border border-[#131d2b] p-3 sm:p-5 select-none overflow-hidden">
+      <div
+        ref={chartContainerRef}
+        className="my-6 relative w-full rounded-2xl bg-[#060a12]/80 border border-[#131d2b] p-3 sm:p-5 select-none overflow-hidden touch-pan-y"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
         <div className="relative w-full h-[280px] sm:h-[320px]">
           <svg
-            className="w-full h-full overflow-visible"
+            className="w-full h-full overflow-visible pointer-events-none"
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="none"
-            onMouseLeave={() => setHoveredPoint(null)}
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -382,31 +461,6 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
                 />
               </g>
             )}
-
-            {/* Transparent Interactive Mouse Overlay Columns */}
-            {coords.map((pt, idx) => {
-              const colWidth = chartWidth / coords.length;
-              return (
-                <rect
-                  key={idx}
-                  x={pt.x - colWidth / 2}
-                  y={0}
-                  width={colWidth}
-                  height={chartHeight}
-                  fill="transparent"
-                  className="cursor-crosshair"
-                  onMouseEnter={() =>
-                    setHoveredPoint({
-                      time: pt.time,
-                      price: pt.price,
-                      x: pt.x,
-                      y: pt.y,
-                      volume: pt.volume,
-                    })
-                  }
-                />
-              );
-            })}
           </svg>
 
           {/* Bottom-Left: TradingView Stylized Watermark Logo */}
@@ -462,7 +516,7 @@ const LiveFeedCard: React.FC<LiveFeedCardProps> = ({
           {/* Floating Tooltip Box matching CandlestickChart */}
           {hoveredPoint && (
             <div
-              className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-75"
+              className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-0 sm:duration-75"
               style={getSmartTooltipPosition(hoveredPoint.x, hoveredPoint.y, width, height, {
                 rightPadding: paddingRight,
                 topPadding: 0,

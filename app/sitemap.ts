@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { env } from "@/config/env";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = env.NEXTAUTH_URL || "https://mypaisa.com";
+  const baseUrl = env.NEXTAUTH_URL || "https://mypaisa.divyashakti.eu.cc";
   const now = new Date();
 
   return [

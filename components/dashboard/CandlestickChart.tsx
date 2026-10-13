@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useId } from "react";
+import React, { useState, useMemo, useId, useRef, useCallback, useEffect } from "react";
 import type {
   CandlestickChartProps,
   CandleData,
@@ -40,6 +40,14 @@ const CandlestickChart = ({
   const gradientId = useId();
   const [hoveredCandle, setHoveredCandle] = useState<HoveredCandle | null>(null);
   const [chartMode, setChartMode] = useState<"candles" | "line">("candles");
+
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isInteractingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    setHoveredCandle(null);
+  }, [symbol, selectedWindow]);
 
   const hasData = (price != null && !isNaN(price)) || chartPoints?.length > 0;
   const isPositive = movement === "Up" || (changePercent != null && changePercent >= 0);
@@ -210,15 +218,85 @@ const CandlestickChart = ({
     };
   }, [chartPoints, price, chartWidth, chartHeight, paddingTop, stats]);
 
-  const scaleY = (val: number) => {
-    if (yMax <= yMin) return paddingTop + chartHeight / 2;
-    const ratio = (val - yMin) / (yMax - yMin);
-    return paddingTop + chartHeight - ratio * chartHeight;
-  };
+  const scaleY = useCallback(
+    (val: number) => {
+      if (yMax <= yMin) return paddingTop + chartHeight / 2;
+      const ratio = (val - yMin) / (yMax - yMin);
+      return paddingTop + chartHeight - ratio * chartHeight;
+    },
+    [yMax, yMin, paddingTop, chartHeight]
+  );
 
   const candleSlotWidth = candles.length > 0 ? chartWidth / candles.length : 0;
   const candleBodyWidth = Math.max(3, Math.min(18, candleSlotWidth * 0.65));
   const activeCandle = hoveredCandle?.candle ?? (candles.length > 0 ? candles[candles.length - 1] : null);
+
+  const updateHoverFromClientX = useCallback(
+    (clientX: number) => {
+      if (!candles || candles.length === 0 || !chartContainerRef.current) return;
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
+      const offsetX = clientX - rect.left;
+      const svgX = (offsetX / rect.width) * width;
+      const clampedSvgX = Math.max(0, Math.min(chartWidth, svgX));
+      const ratio = clampedSvgX / chartWidth;
+      const idx = Math.min(
+        candles.length - 1,
+        Math.max(0, Math.floor(ratio * candles.length))
+      );
+      const candle = candles[idx];
+      if (!candle) return;
+
+      const cx = (idx + 0.5) * candleSlotWidth;
+      const closeY = scaleY(candle.close);
+
+      setHoveredCandle({
+        candle,
+        x: cx,
+        y: closeY,
+      });
+    },
+    [candles, width, chartWidth, candleSlotWidth, scaleY]
+  );
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      isInteractingRef.current = true;
+      updateHoverFromClientX(touch.clientX);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0 && touchStartRef.current) {
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+      const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+
+      // If user is scrubbing horizontally, prevent native page scrolling so the line glides smoothly
+      if (dx > dy || isInteractingRef.current) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        updateHoverFromClientX(touch.clientX);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    isInteractingRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    updateHoverFromClientX(e.clientX);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredCandle(null);
+  };
 
   const investorMetrics = useMemo(
     () => extractInvestorMetrics(stats, price, candles, movementValue),
@@ -393,10 +471,19 @@ const CandlestickChart = ({
 
           {/* Interactive Chart Canvas / SVG Area */}
           {candles.length > 0 && (
-            <div className="mt-5 relative w-full overflow-x-auto select-none">
-              <div className="relative min-w-[650px] w-full h-[340px]">
+            <div
+              ref={chartContainerRef}
+              className="mt-5 relative w-full select-none touch-pan-y"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+            >
+              <div className="relative w-full h-[280px] sm:h-[340px]">
                 <svg
-                  className="w-full h-full overflow-visible"
+                  className="w-full h-full overflow-visible pointer-events-none"
                   viewBox={`0 0 ${width} ${height}`}
                   preserveAspectRatio="none"
                 >
@@ -537,36 +624,15 @@ const CandlestickChart = ({
                     </g>
                   )}
 
-                  {/* Invisible Hit Zones */}
-                  {candles.map((candle, idx) => {
-                    const cx = (idx + 0.5) * candleSlotWidth;
-                    const closeY = scaleY(candle.close);
-                    return (
-                      <rect
-                        key={`hit-${idx}`}
-                        x={idx * candleSlotWidth}
-                        y={paddingTop}
-                        width={candleSlotWidth}
-                        height={chartHeight}
-                        fill="transparent"
-                        onMouseEnter={() =>
-                          setHoveredCandle({
-                            candle,
-                            x: cx,
-                            y: closeY,
-                          })
-                        }
-                        onMouseLeave={() => setHoveredCandle(null)}
-                        className="cursor-crosshair"
-                      />
-                    );
-                  })}
                 </svg>
 
                 {/* Right Y-Axis Price Labels */}
-                <div className="absolute top-[20px] right-0 h-[285px] w-[80px] flex flex-col justify-between text-[11px] font-mono text-gray-400 pl-2 pointer-events-none">
+                <div
+                  className="absolute top-[20px] right-0 h-[calc(100%-55px)] flex flex-col justify-between items-end text-[9px] sm:text-[11px] font-mono text-gray-400 pr-1 pointer-events-none"
+                  style={{ width: `${(paddingRight / width) * 100}%` }}
+                >
                   {yTicks.map((val, idx) => (
-                    <span key={idx}>
+                    <span key={idx} className="truncate">
                       {val.toLocaleString(CANDLESTICK_MESSAGES.locale, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -581,13 +647,13 @@ const CandlestickChart = ({
                     className="absolute right-0 transform -translate-y-1/2 z-20 pointer-events-none"
                     style={{
                       top: `${Math.max(
-                        paddingTop + 10,
-                        Math.min(paddingTop + chartHeight - 10, scaleY(price))
-                      )}px`,
+                        6,
+                        Math.min(90, (scaleY(price) / height) * 100)
+                      )}%`,
                     }}
                   >
                     <span
-                      className={`inline-block px-2 py-0.5 rounded-md font-mono font-bold text-xs shadow-lg ${isPositive ? "bg-[#10b981] text-[#052e16]" : "bg-[#f43f5e] text-white"
+                      className={`inline-block px-1.5 sm:px-2 py-0.5 rounded-md font-mono font-bold text-[10px] sm:text-xs shadow-lg ${isPositive ? "bg-[#10b981] text-[#052e16]" : "bg-[#f43f5e] text-white"
                         }`}
                     >
                       {price.toFixed(2)}
@@ -597,9 +663,12 @@ const CandlestickChart = ({
 
                 {/* Bottom X-Axis Time Labels */}
                 {xTimeLabels.length > 0 && (
-                  <div className="absolute bottom-1 left-0 w-[calc(100%-85px)] flex justify-between text-[11px] font-mono text-gray-400 px-2 pointer-events-none">
+                  <div
+                    className="absolute bottom-1 left-0 flex justify-between text-[9px] sm:text-[11px] font-mono text-gray-400 px-1 pointer-events-none"
+                    style={{ width: `${(chartWidth / width) * 100}%` }}
+                  >
                     {xTimeLabels.map((c, idx) => (
-                      <span key={idx}>{formatTimeLabel(c.time, selectedWindow)}</span>
+                      <span key={idx} className="truncate">{formatTimeLabel(c.time, selectedWindow)}</span>
                     ))}
                   </div>
                 )}
@@ -615,7 +684,7 @@ const CandlestickChart = ({
                 {/* Floating Tooltip Box */}
                 {hoveredCandle && (
                   <div
-                    className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-75"
+                    className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-0 sm:duration-75"
                     style={getSmartTooltipPosition(
                       hoveredCandle.x,
                       hoveredCandle.y,
@@ -633,11 +702,10 @@ const CandlestickChart = ({
                         {formatTimeLabel(hoveredCandle.candle.time, selectedWindow)}
                       </p>
                       <span
-                        className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                          hoveredCandle.candle.changePercent >= 0
+                        className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded ${hoveredCandle.candle.changePercent >= 0
                             ? "text-emerald-400 bg-emerald-950/60"
                             : "text-rose-400 bg-rose-950/60"
-                        }`}
+                          }`}
                       >
                         {hoveredCandle.candle.changePercent >= 0 ? "+" : ""}
                         {hoveredCandle.candle.changePercent.toFixed(2)}%

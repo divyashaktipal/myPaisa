@@ -48,6 +48,7 @@ export interface SerpApiNewsItem {
   snippet?: string;
   link?: string;
   thumbnail?: string;
+  summary?: string;
 }
 
 export interface SerpApiDiscoverItem {

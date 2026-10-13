@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { financeQueryOptions } from "@/queries/finance";
 import { Chart } from "@tanstack/react-charts";
@@ -39,10 +39,18 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
   const [currentWindow, setCurrentWindow] = useState<string>(initialWindow);
   const [hoveredPoint, setHoveredPoint] = useState<HoveredStockPoint | null>(null);
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isInteractingRef = useRef<boolean>(false);
+
   // Sync window if prop changes
   useEffect(() => {
     if (initialWindow) setCurrentWindow(initialWindow);
   }, [initialWindow]);
+
+  useEffect(() => {
+    setHoveredPoint(null);
+  }, [stock.symbol, currentWindow]);
 
   const handleWindowChange = (win: string) => {
     setCurrentWindow(win);
@@ -191,6 +199,72 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
       : (financeData?.movementValue ?? stock.change);
   const isPositive = displayChangePercent >= 0;
   const displayName = financeData?.title || stock.name;
+
+  const updateHoverFromClientX = useCallback(
+    (clientX: number) => {
+      if (candles.length === 0 || !chartContainerRef.current) return;
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
+      const offsetX = clientX - rect.left;
+      const ratio = Math.max(0, Math.min(1, offsetX / rect.width));
+      const idx = Math.min(candles.length - 1, Math.max(0, Math.floor(ratio * candles.length)));
+      const c = candles[idx];
+      if (!c) return;
+      const spread = maxPrice - minPrice;
+      const yRatio = spread > 0 ? 1 - (c.close - minPrice) / spread : 0.5;
+
+      setHoveredPoint({
+        time: c.time,
+        price: c.close,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        isBullish: c.isBullish,
+        changePercent: c.changePercent,
+        xPercent: ((idx + 0.5) / candles.length) * 100,
+        yPercent: Math.max(15, Math.min(85, yRatio * 100)),
+        volume: c.volume,
+      });
+    },
+    [candles, maxPrice, minPrice]
+  );
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      isInteractingRef.current = true;
+      updateHoverFromClientX(touch.clientX);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0 && touchStartRef.current) {
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+      const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+
+      if (dx > dy || isInteractingRef.current) {
+        if (e.cancelable) e.preventDefault();
+        updateHoverFromClientX(touch.clientX);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    isInteractingRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    updateHoverFromClientX(e.clientX);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredPoint(null);
+  };
 
   return (
     <>
@@ -382,32 +456,14 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
 
         {/* Chart Canvas Area with Rich Mouse Hover & Floating Tooltip */}
         <div
-          className="relative mt-4 mb-5 w-full min-h-[280px] sm:min-h-[320px] flex items-center justify-center rounded-xl bg-[#050910] border border-[#121c2c] p-2 sm:p-4 overflow-hidden select-none"
-          onMouseMove={(e) => {
-            if (candles.length === 0) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const clientX = e.clientX - rect.left;
-            const ratio = Math.max(0, Math.min(1, clientX / rect.width));
-            const idx = Math.min(candles.length - 1, Math.floor(ratio * candles.length));
-            const c = candles[idx];
-            const spread = maxPrice - minPrice;
-            const yRatio = spread > 0 ? 1 - (c.close - minPrice) / spread : 0.5;
-
-            setHoveredPoint({
-              time: c.time,
-              price: c.close,
-              open: c.open,
-              high: c.high,
-              low: c.low,
-              close: c.close,
-              isBullish: c.isBullish,
-              changePercent: c.changePercent,
-              xPercent: ((idx + 0.5) / candles.length) * 100,
-              yPercent: Math.max(15, Math.min(85, yRatio * 100)),
-              volume: c.volume,
-            });
-          }}
-          onMouseLeave={() => setHoveredPoint(null)}
+          ref={chartContainerRef}
+          className="relative mt-4 mb-5 w-full min-h-[280px] sm:min-h-[320px] flex items-center justify-center rounded-xl bg-[#050910] border border-[#121c2c] p-2 sm:p-4 overflow-hidden select-none touch-pan-y"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -465,7 +521,7 @@ export const TanStackStockChart: React.FC<TanStackStockChartProps> = ({
               {/* Floating Tooltip Box matching CandlestickChart */}
               {hoveredPoint && (
                 <div
-                  className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-75"
+                  className="absolute z-30 pointer-events-none bg-[#091018]/95 border border-[#1e2e42] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-0 sm:duration-75"
                   style={{
                     left: `${hoveredPoint.xPercent}%`,
                     top: `${hoveredPoint.yPercent}%`,

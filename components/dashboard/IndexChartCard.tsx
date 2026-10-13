@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { useState, useId, useMemo } from "react";
+import React, { useState, useId, useMemo, useRef, useCallback, useEffect } from "react";
 import type { IndexChartCardProps, HoveredChartPoint } from "@/types/IndexChartCard";
 import {
   INDEX_CHART_TABS,
@@ -31,6 +30,14 @@ const IndexChartCard = ({
 }: IndexChartCardProps) => {
   const gradientId = useId();
   const [hoveredPoint, setHoveredPoint] = useState<HoveredChartPoint | null>(null);
+
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isInteractingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    setHoveredPoint(null);
+  }, [selectedIndex, selectedWindow]);
 
   const hasData = price != null || chartPoints.length > 0;
   const isPositive = movement === "Up" || (changePercent != null && changePercent >= 0);
@@ -125,6 +132,63 @@ const IndexChartCard = ({
       xLabels: labels,
     };
   }, [chartPoints, chartWidth, chartHeight, price, stats]);
+
+  const updateHoverFromClientX = useCallback(
+    (clientX: number) => {
+      if (!coords || coords.length === 0 || !chartContainerRef.current) return;
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
+      const offsetX = clientX - rect.left;
+      const svgX = (offsetX / rect.width) * width;
+      const clampedSvgX = Math.max(0, Math.min(chartWidth, svgX));
+      const ratio = clampedSvgX / chartWidth;
+      const idx = Math.min(
+        coords.length - 1,
+        Math.max(0, Math.round(ratio * (coords.length - 1)))
+      );
+      const pt = coords[idx];
+      if (pt) {
+        setHoveredPoint(pt);
+      }
+    },
+    [coords, width, chartWidth]
+  );
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      isInteractingRef.current = true;
+      updateHoverFromClientX(touch.clientX);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0 && touchStartRef.current) {
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+      const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+
+      if (dx > dy || isInteractingRef.current) {
+        if (e.cancelable) e.preventDefault();
+        updateHoverFromClientX(touch.clientX);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    isInteractingRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    updateHoverFromClientX(e.clientX);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredPoint(null);
+  };
 
   return (
     <div className={`rounded-2xl bg-[#0e1622] border border-[#1b2637] p-5 sm:p-7 shadow-xl text-white ${className}`}>
@@ -271,10 +335,19 @@ const IndexChartCard = ({
 
           {/* Chart Canvas / SVG Container */}
           {coords.length > 0 && (
-            <div className="mt-6 relative w-full overflow-x-auto select-none pt-4">
-              <div className="relative min-w-[700px] w-full h-[320px]">
+            <div
+              ref={chartContainerRef}
+              className="mt-6 relative w-full select-none pt-4 touch-pan-y"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+            >
+              <div className="relative w-full h-[280px] sm:h-[320px]">
                 <svg
-                  className="w-full h-full overflow-visible"
+                  className="w-full h-full overflow-visible pointer-events-none"
                   viewBox={`0 0 ${width} ${height}`}
                   preserveAspectRatio="none"
                 >
@@ -339,27 +412,15 @@ const IndexChartCard = ({
                       />
                     </g>
                   )}
-
-                  {/* Invisible hover overlay zones */}
-                  {coords.map((pt, i) => (
-                    <rect
-                      key={i}
-                      x={pt.x - Math.max(2, chartWidth / coords.length / 2)}
-                      y="0"
-                      width={Math.max(4, chartWidth / coords.length)}
-                      height={chartHeight}
-                      fill="transparent"
-                      onMouseEnter={() => setHoveredPoint(pt)}
-                      onMouseLeave={() => setHoveredPoint(null)}
-                      className="cursor-crosshair"
-                    />
-                  ))}
                 </svg>
 
                 {/* Right Y-Axis Labels */}
-                <div className="absolute top-0 right-0 h-[265px] w-[90px] flex flex-col justify-between text-[11px] font-mono text-gray-400 pl-2">
+                <div
+                  className="absolute top-0 right-0 h-[calc(100%-35px)] flex flex-col justify-between items-end text-[9px] sm:text-[11px] font-mono text-gray-400 pr-1 pointer-events-none"
+                  style={{ width: `${(paddingRight / width) * 100}%` }}
+                >
                   {yTicks.map((val, idx) => (
-                    <span key={idx} className="text-gray-400">
+                    <span key={idx} className="truncate">
                       {val.toLocaleString(CHART_MESSAGES.locale, {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -371,16 +432,16 @@ const IndexChartCard = ({
                 {/* Current Price Pill on Right Axis */}
                 {price != null && (
                   <div
-                    className="absolute right-0 transform -translate-y-1/2 z-20"
+                    className="absolute right-0 transform -translate-y-1/2 z-20 pointer-events-none"
                     style={{
                       top: `${Math.max(
-                        10,
-                        Math.min(chartHeight - 10, chartHeight - ((price - yMin) / (yMax - yMin)) * chartHeight)
-                      )}px`,
+                        6,
+                        Math.min(90, ((chartHeight - ((price - yMin) / (yMax - yMin)) * chartHeight) / height) * 100)
+                      )}%`,
                     }}
                   >
                     <span
-                      className={`inline-block px-2 py-0.5 rounded-md font-mono font-bold text-xs shadow-lg ${isPositive ? "bg-[#10b981] text-[#052e16]" : "bg-[#f43f5e] text-white"
+                      className={`inline-block px-1.5 sm:px-2 py-0.5 rounded-md font-mono font-bold text-[10px] sm:text-xs shadow-lg ${isPositive ? "bg-[#10b981] text-[#052e16]" : "bg-[#f43f5e] text-white"
                         }`}
                     >
                       {price.toFixed(2)}
@@ -390,15 +451,18 @@ const IndexChartCard = ({
 
                 {/* Bottom X-Axis Time Labels */}
                 {xLabels.length > 0 && (
-                  <div className="absolute bottom-1 left-0 w-[calc(100%-95px)] flex justify-between text-[11px] font-mono text-gray-400 px-1">
+                  <div
+                    className="absolute bottom-1 left-0 flex justify-between text-[9px] sm:text-[11px] font-mono text-gray-400 px-1 pointer-events-none"
+                    style={{ width: `${(chartWidth / width) * 100}%` }}
+                  >
                     {xLabels.map((lbl, idx) => (
-                      <span key={idx}>{formatTimeLabel(lbl.time, selectedWindow)}</span>
+                      <span key={idx} className="truncate">{formatTimeLabel(lbl.time, selectedWindow)}</span>
                     ))}
                   </div>
                 )}
 
                 {/* Google Finance / SerpApi Live Badge */}
-                <div className="absolute bottom-7 left-2 flex items-center gap-1.5 opacity-80 hover:opacity-100 transition">
+                <div className="absolute bottom-7 left-2 flex items-center gap-1.5 opacity-80 hover:opacity-100 transition pointer-events-none">
                   <div className="px-2 py-1 rounded-md bg-[#111c2a] border border-[#23354c] flex items-center gap-1.5 text-[10px] text-gray-300 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span>{CHART_MESSAGES.sourceBadge}</span>
@@ -408,7 +472,7 @@ const IndexChartCard = ({
                 {/* Hover Tooltip Box */}
                 {hoveredPoint && (
                   <div
-                    className="absolute z-30 pointer-events-none bg-[#111b29]/95 border border-[#26374e] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-75"
+                    className="absolute z-30 pointer-events-none bg-[#111b29]/95 border border-[#26374e] rounded-xl p-2.5 sm:p-3 text-xs shadow-2xl backdrop-blur-md min-w-[155px] max-w-[220px] transition-[left,top] duration-0 sm:duration-75"
                     style={getSmartTooltipPosition(hoveredPoint.x, hoveredPoint.y, width, height, {
                       rightPadding: paddingRight,
                       topPadding: 0,
